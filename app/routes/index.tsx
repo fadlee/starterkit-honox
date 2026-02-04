@@ -25,6 +25,9 @@ export default createRoute((c) => {
           <a class="underline" href="/demo/form">
             /demo/form
           </a>
+          <a class="underline" href="/demo/router">
+            /demo/router
+          </a>
           <a class="underline" href="/demo/hello/Hono">
             /demo/hello/:name
           </a>

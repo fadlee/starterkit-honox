@@ -1,5 +1,5 @@
 import { createRoute } from 'honox/factory'
-import Clock from '../../islands/clock'
+import Clock from '@/islands/clock'
 
 function ClockPage(props: { now: Date }) {
   const iso = props.now.toISOString()

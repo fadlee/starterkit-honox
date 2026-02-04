@@ -1,5 +1,5 @@
 import { createRoute } from 'honox/factory'
-import Counter from '../../islands/counter'
+import Counter from '@/islands/counter'
 
 function CounterPage(props: { now: Date }) {
   const iso = props.now.toISOString()

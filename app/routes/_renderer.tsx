@@ -9,7 +9,8 @@ export default jsxRenderer(({ children }) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/favicon.ico" />
         <Link href="/app/style.css" rel="stylesheet" />
-        <Script src="/app/client.ts" async />
+        {/* Honox createClient() hydrates immediately; avoid async to ensure DOM is parsed first */}
+        <Script src="/app/client.ts" />
       </head>
       <body>{children}</body>
     </html>

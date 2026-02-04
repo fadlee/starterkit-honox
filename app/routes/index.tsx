@@ -16,6 +16,15 @@ export default createRoute((c) => {
           <a class="underline" href="/demo/clock">
             /demo/clock
           </a>
+          <a class="underline" href="/demo/data/ssr">
+            /demo/data/ssr
+          </a>
+          <a class="underline" href="/demo/data/spa">
+            /demo/data/spa
+          </a>
+          <a class="underline" href="/demo/form">
+            /demo/form
+          </a>
           <a class="underline" href="/demo/hello/Hono">
             /demo/hello/:name
           </a>

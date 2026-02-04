@@ -5,6 +5,7 @@
     "": {
       "name": "basic",
       "dependencies": {
+        "@hotwired/turbo": "^8.0.23",
         "hono": "^4.11.7",
         "honox": "0.1.52",
       },
@@ -116,6 +117,8 @@
     "@hono/vite-build": ["@hono/vite-build@1.9.2", "", { "peerDependencies": { "hono": "*" } }, "sha512-7/qan3lgeA8mMv7jtx5KX0wrAdMteNqI87JcZjS1CUN9hhIsaqOvySXcT3lZLyhYidywl+s88ZX84I0knefItA=="],
 
     "@hono/vite-dev-server": ["@hono/vite-dev-server@0.18.3", "", { "dependencies": { "@hono/node-server": "^1.12.0", "minimatch": "^9.0.3" }, "peerDependencies": { "hono": "*", "miniflare": "*", "wrangler": "*" }, "optionalPeers": ["miniflare", "wrangler"] }, "sha512-JztypLmq6qtQ3OAcz5vDzwXYBBymLztSbfDuNf4XTWkfppLjf6DHvYHtQZ5idOfNhUzdnbYY7/6QAKlVk6G3QQ=="],
+
+    "@hotwired/turbo": ["@hotwired/turbo@8.0.23", "", {}, "sha512-GZ7cijxEZ6Ig71u7rD6LHaRv/wcE/hNsc+nEfiWOkLNqUgLOwo5MNGWOy5ZV9ZUDSiQx1no7YxjTNnT4O6//cQ=="],
 
     "@img/colour": ["@img/colour@1.0.0", "", {}, "sha512-A5P/LfWGFSl6nsckYtjw9da+19jB8hkJ6ACTGcDfEJ0aE+l2n2El7dsVM7UVHZQ9s2lmYMWlrS21YLy2IR1LUw=="],
 

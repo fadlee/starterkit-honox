@@ -9,6 +9,7 @@
   },
   "private": true,
   "dependencies": {
+    "@hotwired/turbo": "^8.0.23",
     "hono": "^4.11.7",
     "honox": "0.1.52"
   },

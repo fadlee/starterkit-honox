@@ -1,1 +1,62 @@
-@import 'tailwindcss' source('../app');
+@import 'tailwindcss';
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --border: 240 5.9% 90%;
+  --ring: 240 5% 64.9%;
+  --radius: 0.75rem;
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ui-dialog-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ui-slide-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+[data-ui-dialog-wrapper][data-state="open"] [data-ui-dialog-overlay],
+[data-ui-alert-dialog-wrapper][data-state="open"] [data-ui-alert-dialog-overlay] {
+  animation: ui-fade-in 140ms ease-out;
+}
+
+[data-ui-dialog-wrapper][data-state="open"] [data-ui-dialog-content],
+[data-ui-alert-dialog-wrapper][data-state="open"] [data-ui-alert-dialog-content] {
+  animation: ui-dialog-in 150ms ease-out;
+}
+
+[data-ui-popover-content][data-state="open"],
+[data-ui-dropdown-content][data-state="open"],
+[data-ui-select-content][data-state="open"],
+[data-ui-tooltip-content][data-state="open"] {
+  animation: ui-slide-up 140ms ease-out;
+}

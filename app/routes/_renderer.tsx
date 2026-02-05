@@ -1,6 +1,14 @@
 import { jsxRenderer } from 'hono/jsx-renderer'
 import { Link } from 'honox/server'
 
+import DialogController from '@/islands/ui/dialog-controller'
+import DropdownMenuController from '@/islands/ui/dropdown-menu-controller'
+import PopoverController from '@/islands/ui/popover-controller'
+import SelectController from '@/islands/ui/select-controller'
+import TabsController from '@/islands/ui/tabs-controller'
+import TooltipController from '@/islands/ui/tooltip-controller'
+import ToastViewport from '@/islands/ui/toast-viewport'
+
 const resolveClientEntrySrc = () => {
   if (!import.meta.env.PROD) {
     return '/app/client.ts'
@@ -41,7 +49,16 @@ export default jsxRenderer(({ children }) => {
         {/* Load client entry on all pages (not gated on islands) */}
         {clientEntrySrc && <script type="module" src={clientEntrySrc} />}
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <DialogController />
+        <DropdownMenuController />
+        <PopoverController />
+        <SelectController />
+        <TabsController />
+        <TooltipController />
+        <ToastViewport />
+      </body>
     </html>
   )
 })

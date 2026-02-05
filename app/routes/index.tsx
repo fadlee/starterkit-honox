@@ -28,6 +28,9 @@ export default createRoute((c) => {
           <a class="underline" href="/demo/router">
             /demo/router
           </a>
+          <a class="underline" href="/demo/ui">
+            /demo/ui
+          </a>
           <a class="underline" href="/demo/hello/Hono">
             /demo/hello/:name
           </a>

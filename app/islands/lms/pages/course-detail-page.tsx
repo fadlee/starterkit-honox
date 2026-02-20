@@ -20,9 +20,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { enrollCourse, getCourseBySlug, getCourseProgress, getEnrollment, getLessonsByTopic, getTopicsByCourse } from '@/lib/lms-storage'
+import { enrollCourse, getCourseBySlug, getEnrollment, getLessonsByTopic, getTopicsByCourse } from '@/lib/lms-storage'
 import { toast } from '@/lib/toast'
-import type { Course, Lesson, Topic } from '@/types/lms'
+import type { Course, Enrollment, Lesson, Topic } from '@/types/lms'
 import { go, replace } from '@/islands/lms/hooks/navigation'
 import { useAuth } from '@/islands/lms/hooks/use-auth'
 
@@ -38,6 +38,19 @@ function formatDuration(hours: number, minutes: number, seconds: number) {
   if (minutes > 0 || hours > 0) parts.push(`${String(minutes).padStart(2, '0')}m`)
   parts.push(`${String(seconds).padStart(2, '0')}s`)
   return parts.join(' ')
+}
+
+function calculateProgress(topics: TopicWithLessons[], enrollment?: Enrollment): number {
+  const lessonIds = topics.flatMap((topic) => topic.lessons.map((lesson) => lesson.id))
+  if (lessonIds.length === 0) return 0
+
+  const lessonIdSet = new Set(lessonIds)
+  const completedCount = (enrollment?.completedLessons || []).filter((lessonId) =>
+    lessonIdSet.has(lessonId)
+  ).length
+
+  const rawProgress = Math.round((completedCount / lessonIds.length) * 100)
+  return Math.max(0, Math.min(100, rawProgress))
 }
 
 export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) {
@@ -69,7 +82,7 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
       )
 
       const enrollment = await getEnrollment(resolvedCourse.id)
-      const nextProgress = await getCourseProgress(resolvedCourse.id)
+      const nextProgress = calculateProgress(resolvedTopics, enrollment)
 
       if (!active) return
 
@@ -112,12 +125,11 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
   const handleEnroll = async () => {
     if (!course) return
     try {
-      await enrollCourse(course.id)
+      const enrollment = await enrollCourse(course.id)
       setEnrolled(true)
-      setProgress(await getCourseProgress(course.id))
+      setProgress(calculateProgress(topics, enrollment))
     } catch {
-      toast({ title: 'Silakan login terlebih dahulu untuk enroll', variant: 'error' })
-      go('/login')
+      toast({ title: 'Gagal enroll course. Coba lagi.', variant: 'error' })
     }
   }
 

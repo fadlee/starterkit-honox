@@ -1,8 +1,140 @@
 import type { Course, Enrollment, Lesson, Topic } from '@/types/lms'
 import { apiFetch, ApiHttpError } from '@/lib/api-client'
 
+const GUEST_ENROLLMENTS_KEY = 'lms_guest_enrollments_v1'
+const GUEST_COMPLETED_LESSONS_KEY = 'lms_guest_completed_lessons_v1'
+
+type GuestEnrollments = Record<string, string>
+type GuestCompletedLessonsMap = Record<string, string[]>
+
 function encode(value: string): string {
   return encodeURIComponent(value)
+}
+
+function canUseLocalStorage(): boolean {
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+}
+
+function createGuestEnrollment(courseId: string, enrolledAt: string, completedLessons: string[]): Enrollment {
+  return {
+    id: `guest:${courseId}`,
+    userId: 'guest',
+    courseId,
+    enrolledAt,
+    completedLessons,
+    notes: {},
+  }
+}
+
+function readGuestEnrollments(): GuestEnrollments {
+  if (!canUseLocalStorage()) return {}
+
+  try {
+    const raw = window.localStorage.getItem(GUEST_ENROLLMENTS_KEY)
+    if (!raw) return {}
+
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+
+    const result: GuestEnrollments = {}
+    for (const [courseId, enrolledAt] of Object.entries(parsed)) {
+      if (typeof courseId === 'string' && typeof enrolledAt === 'string') {
+        result[courseId] = enrolledAt
+      }
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+function writeGuestEnrollments(enrollments: GuestEnrollments): void {
+  if (!canUseLocalStorage()) return
+  try {
+    window.localStorage.setItem(GUEST_ENROLLMENTS_KEY, JSON.stringify(enrollments))
+  } catch {
+    // Ignore storage write failures to keep app flow working.
+  }
+}
+
+function readGuestCompletedLessonsMap(): GuestCompletedLessonsMap {
+  if (!canUseLocalStorage()) return {}
+
+  try {
+    const raw = window.localStorage.getItem(GUEST_COMPLETED_LESSONS_KEY)
+    if (!raw) return {}
+
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+
+    const result: GuestCompletedLessonsMap = {}
+    for (const [courseId, lessonIds] of Object.entries(parsed)) {
+      if (typeof courseId !== 'string' || !Array.isArray(lessonIds)) continue
+      result[courseId] = lessonIds.filter((item): item is string => typeof item === 'string')
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+function writeGuestCompletedLessonsMap(completedLessonsMap: GuestCompletedLessonsMap): void {
+  if (!canUseLocalStorage()) return
+  try {
+    window.localStorage.setItem(GUEST_COMPLETED_LESSONS_KEY, JSON.stringify(completedLessonsMap))
+  } catch {
+    // Ignore storage write failures to keep app flow working.
+  }
+}
+
+function getGuestCompletedLessons(courseId: string): string[] {
+  return readGuestCompletedLessonsMap()[courseId] || []
+}
+
+function toggleGuestLessonCompletion(courseId: string, lessonId: string): boolean {
+  const completedLessonsMap = readGuestCompletedLessonsMap()
+  const existing = completedLessonsMap[courseId] || []
+  const lessonSet = new Set(existing)
+
+  let completed = false
+  if (lessonSet.has(lessonId)) {
+    lessonSet.delete(lessonId)
+  } else {
+    lessonSet.add(lessonId)
+    completed = true
+  }
+
+  completedLessonsMap[courseId] = Array.from(lessonSet)
+  writeGuestCompletedLessonsMap(completedLessonsMap)
+  return completed
+}
+
+function deleteGuestCompletedLessons(courseId: string): void {
+  const completedLessonsMap = readGuestCompletedLessonsMap()
+  if (!(courseId in completedLessonsMap)) return
+  delete completedLessonsMap[courseId]
+  writeGuestCompletedLessonsMap(completedLessonsMap)
+}
+
+function getGuestEnrollment(courseId: string): Enrollment | undefined {
+  const enrolledAt = readGuestEnrollments()[courseId]
+  if (!enrolledAt) return undefined
+  return createGuestEnrollment(courseId, enrolledAt, getGuestCompletedLessons(courseId))
+}
+
+function saveGuestEnrollment(courseId: string): Enrollment {
+  const enrollments = readGuestEnrollments()
+  const enrolledAt = enrollments[courseId] ?? new Date().toISOString()
+  enrollments[courseId] = enrolledAt
+  writeGuestEnrollments(enrollments)
+  return createGuestEnrollment(courseId, enrolledAt, getGuestCompletedLessons(courseId))
+}
+
+function deleteGuestEnrollment(courseId: string): void {
+  const enrollments = readGuestEnrollments()
+  if (!(courseId in enrollments)) return
+  delete enrollments[courseId]
+  writeGuestEnrollments(enrollments)
 }
 
 function isNotFound(error: unknown): boolean {
@@ -188,21 +320,36 @@ export async function getEnrollment(courseId: string): Promise<Enrollment | unde
     const enrollment = await apiFetch<Enrollment | null>(`/api/courses/${encode(courseId)}/enrollment`)
     return enrollment ?? undefined
   } catch (error) {
-    if (isUnauthorized(error) || isNotFound(error)) return undefined
+    if (isUnauthorized(error)) return getGuestEnrollment(courseId)
+    if (isNotFound(error)) return undefined
     throw error
   }
 }
 
 export async function enrollCourse(courseId: string): Promise<Enrollment> {
-  return apiFetch<Enrollment>(`/api/courses/${encode(courseId)}/enrollment`, {
-    method: 'POST',
-  })
+  try {
+    return await apiFetch<Enrollment>(`/api/courses/${encode(courseId)}/enrollment`, {
+      method: 'POST',
+    })
+  } catch (error) {
+    if (isUnauthorized(error)) return saveGuestEnrollment(courseId)
+    throw error
+  }
 }
 
 export async function unenrollCourse(courseId: string): Promise<void> {
-  await apiFetch<{ ok: boolean }>(`/api/courses/${encode(courseId)}/enrollment`, {
-    method: 'DELETE',
-  })
+  try {
+    await apiFetch<{ ok: boolean }>(`/api/courses/${encode(courseId)}/enrollment`, {
+      method: 'DELETE',
+    })
+  } catch (error) {
+    if (isUnauthorized(error)) {
+      deleteGuestEnrollment(courseId)
+      deleteGuestCompletedLessons(courseId)
+      return
+    }
+    throw error
+  }
 }
 
 export async function toggleLessonComplete(courseId: string, lessonId: string): Promise<boolean> {
@@ -215,6 +362,9 @@ export async function toggleLessonComplete(courseId: string, lessonId: string): 
     )
     return response.completed
   } catch (error) {
+    if (error instanceof ApiHttpError && error.status === 401) {
+      return toggleGuestLessonCompletion(courseId, lessonId)
+    }
     if (error instanceof ApiHttpError && error.status === 400) {
       return false
     }

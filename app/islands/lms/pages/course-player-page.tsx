@@ -4,7 +4,6 @@ import type { Course, Lesson, Topic } from '@/types/lms'
 import {
   enrollCourse,
   getCourseBySlug,
-  getCourseProgress,
   getEnrollment,
   getLessonBySlug,
   getLessonsByTopic,
@@ -33,6 +32,7 @@ import {
   X,
 } from '@/components/lms/icons'
 import { go, replace, replaceUrl } from '@/islands/lms/hooks/navigation'
+import { useAuth } from '@/islands/lms/hooks/use-auth'
 import { useIsMobile } from '@/islands/lms/hooks/use-mobile'
 
 type TopicWithLessons = Topic & { lessons: Lesson[] }
@@ -56,9 +56,11 @@ function toYouTubeEmbedUrl(url: string): string {
 
 export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlayerPageProps) {
   const isMobile = useIsMobile()
+  const { user, loading } = useAuth()
 
   const [course, setCourse] = useState<Course | null>(null)
   const [topics, setTopics] = useState<TopicWithLessons[]>([])
+  const [isEnrolled, setIsEnrolled] = useState(false)
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'notes'>('overview')
   const [progress, setProgress] = useState(0)
@@ -74,18 +76,29 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
   const totalLessons = allLessons.length
 
   const courseId = course?.id
+  const canTrackCompletion = isEnrolled
+  const canUseNotes = !loading && !!user
 
   const refreshProgress = useCallback(async () => {
     if (!courseId) return
 
-    const [nextProgress, enrollment] = await Promise.all([
-      getCourseProgress(courseId),
-      getEnrollment(courseId),
-    ])
+    const enrollment = await getEnrollment(courseId)
+    if (!enrollment) {
+      setCompletedLessons([])
+      setProgress(0)
+      return
+    }
 
-    setProgress(nextProgress)
-    setCompletedLessons(enrollment?.completedLessons || [])
-  }, [courseId])
+    const allLessonIdSet = new Set(allLessons.map((lesson) => lesson.id))
+    const filteredCompletedLessons = enrollment.completedLessons.filter((lessonId) =>
+      allLessonIdSet.has(lessonId)
+    )
+    const completedCount = filteredCompletedLessons.length
+    const nextProgress = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
+
+    setCompletedLessons(filteredCompletedLessons)
+    setProgress(Math.max(0, Math.min(100, nextProgress)))
+  }, [allLessons, courseId, totalLessons])
 
   useEffect(() => {
     let active = true
@@ -106,7 +119,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
         try {
           enrollment = await enrollCourse(resolvedId)
         } catch {
-          // ignore when user is not authenticated
+          // Keep player accessible even if enrollment request fails.
         }
       }
 
@@ -139,6 +152,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
 
       setCourse(resolvedCourse)
       setTopics(resolvedTopics)
+      setIsEnrolled(!!enrollment)
       setOpenTopics(openState)
       setActiveLesson(nextActiveLesson)
 
@@ -159,11 +173,21 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
 
     const load = async () => {
       await refreshProgress()
-      setNoteText(await getNote(courseId, activeLesson.id))
+      if (canUseNotes) {
+        setNoteText(await getNote(courseId, activeLesson.id))
+      } else {
+        setNoteText('')
+      }
     }
 
     void load()
-  }, [courseId, activeLesson, refreshProgress])
+  }, [courseId, activeLesson, canUseNotes, refreshProgress])
+
+  useEffect(() => {
+    if (!canUseNotes && activeTab === 'notes') {
+      setActiveTab('overview')
+    }
+  }, [activeTab, canUseNotes])
 
   useEffect(() => {
     if (!isDragging) return
@@ -196,17 +220,17 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
     topic.lessons.filter((lesson) => isComplete(lesson.id)).length
 
   const handleToggleComplete = async (lessonId: string) => {
-    if (!courseId) return
+    if (!courseId || !canTrackCompletion) return
     try {
       await toggleLessonComplete(courseId, lessonId)
       await refreshProgress()
     } catch {
-      toast({ title: 'Silakan login untuk update progres', variant: 'error' })
+      toast({ title: 'Gagal update progres. Coba lagi.', variant: 'error' })
     }
   }
 
   const handleMarkComplete = async () => {
-    if (!courseId || !activeLesson) return
+    if (!courseId || !activeLesson || !canTrackCompletion) return
 
     try {
       if (!completedLessons.includes(activeLesson.id)) {
@@ -214,7 +238,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
         await refreshProgress()
       }
     } catch {
-      toast({ title: 'Silakan login untuk update progres', variant: 'error' })
+      toast({ title: 'Gagal update progres. Coba lagi.', variant: 'error' })
       return
     }
 
@@ -229,7 +253,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
   }
 
   const handleSaveNote = async () => {
-    if (!courseId || !activeLesson) return
+    if (!courseId || !activeLesson || !canUseNotes) return
     try {
       await saveNote(courseId, activeLesson.id, noteText)
       toast({ title: 'Note saved', variant: 'success' })
@@ -291,12 +315,14 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
                         : 'hover:bg-[hsl(var(--muted))]/50'
                     }`}
                   >
-                    <Checkbox
-                      checked={isComplete(lesson.id)}
-                      onCheckedChange={() => void handleToggleComplete(lesson.id)}
-                      onClick={(event: MouseEvent) => event.stopPropagation()}
-                      class='shrink-0'
-                    />
+                    {canTrackCompletion && (
+                      <Checkbox
+                        checked={isComplete(lesson.id)}
+                        onCheckedChange={() => void handleToggleComplete(lesson.id)}
+                        onClick={(event: MouseEvent) => event.stopPropagation()}
+                        class='shrink-0'
+                      />
+                    )}
                     <Video class='h-3.5 w-3.5 shrink-0 text-[hsl(var(--muted-foreground))]' />
                     <span class='flex-1 truncate text-left'>{lesson.title}</span>
                     {lesson.isPreview && (
@@ -344,27 +370,35 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
         </div>
 
         <div class='flex shrink-0 items-center gap-2 md:gap-4'>
-          <span class='hidden text-xs text-[hsl(var(--muted-foreground))] sm:inline'>
-            {completedLessons.length} of {totalLessons} ({progress}%)
-          </span>
-          <Progress value={progress} class='h-2 w-16 md:w-32' />
-          <Button
-            size='sm'
-            onClick={() => void handleMarkComplete()}
-            disabled={!activeLesson}
-            class='hidden sm:flex'
-          >
-            <CheckCircle2 class='mr-1 h-4 w-4' /> Mark as Complete
-          </Button>
-          <Button
-            size='icon'
-            variant='outline'
-            onClick={() => void handleMarkComplete()}
-            disabled={!activeLesson}
-            class='h-8 w-8 shrink-0 sm:hidden'
-          >
-            <CheckCircle2 class='h-4 w-4' />
-          </Button>
+          {canTrackCompletion && (
+            <>
+              <span class='hidden text-xs text-[hsl(var(--muted-foreground))] sm:inline'>
+                {completedLessons.length} of {totalLessons} ({progress}%)
+              </span>
+              <Progress value={progress} class='h-2 w-16 md:w-32' />
+            </>
+          )}
+          {canTrackCompletion && (
+            <>
+              <Button
+                size='sm'
+                onClick={() => void handleMarkComplete()}
+                disabled={!activeLesson}
+                class='hidden sm:flex'
+              >
+                <CheckCircle2 class='mr-1 h-4 w-4' /> Mark as Complete
+              </Button>
+              <Button
+                size='icon'
+                variant='outline'
+                onClick={() => void handleMarkComplete()}
+                disabled={!activeLesson}
+                class='h-8 w-8 shrink-0 sm:hidden'
+              >
+                <CheckCircle2 class='h-4 w-4' />
+              </Button>
+            </>
+          )}
         </div>
       </header>
 
@@ -426,17 +460,31 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
                   >
                     <BookOpen class='h-4 w-4' /> Overview
                   </button>
-                  <button
-                    class={`inline-flex items-center gap-1.5 rounded-[calc(var(--radius)-0.25rem)] px-3 py-1.5 text-sm ${
-                      activeTab === 'notes' ? 'bg-white shadow-sm' : ''
-                    }`}
-                    onClick={() => setActiveTab('notes')}
-                  >
-                    <StickyNote class='h-4 w-4' /> Notes
-                  </button>
+                  {canUseNotes && (
+                    <button
+                      class={`inline-flex items-center gap-1.5 rounded-[calc(var(--radius)-0.25rem)] px-3 py-1.5 text-sm ${
+                        activeTab === 'notes' ? 'bg-white shadow-sm' : ''
+                      }`}
+                      onClick={() => setActiveTab('notes')}
+                    >
+                      <StickyNote class='h-4 w-4' /> Notes
+                    </button>
+                  )}
                 </div>
 
-                {activeTab === 'overview' ? (
+                {activeTab === 'notes' && canUseNotes ? (
+                  <div class='mt-4 space-y-3'>
+                    <Textarea
+                      placeholder='Write your notes here...'
+                      value={noteText}
+                      onInput={(event) => setNoteText((event.target as HTMLTextAreaElement).value)}
+                      class='min-h-[200px]'
+                    />
+                    <Button size='sm' onClick={() => void handleSaveNote()}>
+                      Save Note
+                    </Button>
+                  </div>
+                ) : (
                   <div class='mt-4'>
                     {activeLesson.content ? (
                       <div
@@ -448,18 +496,6 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
                         No content available for this lesson.
                       </p>
                     )}
-                  </div>
-                ) : (
-                  <div class='mt-4 space-y-3'>
-                    <Textarea
-                      placeholder='Write your notes here...'
-                      value={noteText}
-                      onInput={(event) => setNoteText((event.target as HTMLTextAreaElement).value)}
-                      class='min-h-[200px]'
-                    />
-                    <Button size='sm' onClick={() => void handleSaveNote()}>
-                      Save Note
-                    </Button>
                   </div>
                 )}
               </div>

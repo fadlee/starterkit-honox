@@ -3,7 +3,7 @@ import type { JSX } from 'hono/jsx'
 import { cn } from '@/lib/cn'
 
 export type LabelProps = JSX.IntrinsicElements['label'] & {
-  htmlFor: string
+  htmlFor?: string
 }
 
 export function Label(props: LabelProps) {

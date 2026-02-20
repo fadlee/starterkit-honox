@@ -9,7 +9,7 @@
 bun install
 bun run dev
 bun run build
-bunx tsc --noEmit
+bun run typecheck
 ```
 
 ## Patterns & Conventions
@@ -32,6 +32,8 @@ bunx tsc --noEmit
 - Client hydration + Turbo behavior: `app/client.ts`
 - API client wrapper: `app/lib/api-client.ts`
 - LMS domain client layer: `app/lib/lms-storage.ts`
+- Server data layer/service facade: `app/lib/server/lms-store.ts`
+- Drizzle schema and repositories: `app/lib/server/db/**`
 - Global styles/tokens: `app/style.css`
 
 ## JIT Index Hints
@@ -52,9 +54,9 @@ rg -n "export function" app/components/ui
 ## Common Gotchas
 - Honox JSX uses `class`, not React-style `className`.
 - Turbo + island hydration relies on `app/client.ts`; keep turbo lifecycle hooks intact.
-- Cloudflare worker data in this project is in-memory mock store; state is not persistent.
+- LMS backend is D1-backed; schema/repository changes require migrations and (if needed) seed updates.
 
 ## Pre-PR Checks
 ```bash
-bunx tsc --noEmit && bun run build
+bun run typecheck && bun run build
 ```

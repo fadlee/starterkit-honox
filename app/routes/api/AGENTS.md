@@ -8,7 +8,7 @@
 ```bash
 bun run dev
 bun run build
-bunx tsc --noEmit
+bun run typecheck
 ```
 
 ## API Patterns & Conventions
@@ -25,7 +25,8 @@ bunx tsc --noEmit
 - Auth helpers and cookie/session policy: `app/lib/server/api-auth.ts`
 - API utility/error helpers: `app/lib/server/api-utils.ts`
 - Payload parsing/coercion: `app/lib/server/lms-payloads.ts`
-- In-memory domain store: `app/lib/server/lms-store.ts`
+- Domain service layer: `app/lib/server/lms-store.ts`
+- Drizzle repository layer: `app/lib/server/db/repositories/lms-repo.ts`
 - Good endpoint example: `app/routes/api/courses.ts`
 - Dynamic nested route example: `app/routes/api/courses/[courseId]/topics.ts`
 
@@ -45,11 +46,11 @@ rg -n "handleApiError|ApiError" app/routes/api app/lib/server
 ```
 
 ## Common Gotchas
-- Data is process-memory (`__LMS_MOCK_STORE__`) and resets on restart/redeploy.
+- Data is D1-backed; schema/repository changes must be paired with SQL migrations.
 - `setSessionCookie` sets `secure` only on HTTPS requests; local HTTP behavior differs.
 - Ensure route param names align with folder params (`[courseId]`, `[lessonId]`, etc.).
 
 ## Pre-PR Checks
 ```bash
-bunx tsc --noEmit && bun run build
+bun run typecheck && bun run build
 ```

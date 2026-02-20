@@ -6,6 +6,7 @@ import { defineConfig } from 'vite'
 import tsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
+  assetsInclude: ['**/*.md'],
   server: {
     host: "::",
     port: Number(process.env.PORT) || 5173,

@@ -16,7 +16,7 @@ type Body = {
 
 export const PATCH = createRoute(async (c) => {
   try {
-    requireAdmin(c)
+    await requireAdmin(c)
     setNoStore(c)
 
     const id = c.req.param('id')
@@ -30,7 +30,7 @@ export const PATCH = createRoute(async (c) => {
       badRequest('role must be admin or user')
     }
 
-    const updated = updateUserRole(id, role)
+    const updated = await updateUserRole(c.env.LMS_DB, id, role)
     if (!updated) {
       notFound('user not found')
     }

@@ -7,7 +7,7 @@ import { handleApiError, notFound, readJsonBody, setNoStore } from '@/lib/server
 
 export const PATCH = createRoute(async (c) => {
   try {
-    requireAdmin(c)
+    await requireAdmin(c)
     setNoStore(c)
 
     const id = c.req.param('id')
@@ -17,7 +17,7 @@ export const PATCH = createRoute(async (c) => {
 
     const body = (await readJsonBody<Record<string, unknown>>(c)) ?? {}
     const data = parseTopicUpdateInput(body)
-    const updated = updateTopic(id, data)
+    const updated = await updateTopic(c.env.LMS_DB, id, data)
 
     if (!updated) {
       notFound('topic not found')
@@ -31,7 +31,7 @@ export const PATCH = createRoute(async (c) => {
 
 export const DELETE = createRoute(async (c) => {
   try {
-    requireAdmin(c)
+    await requireAdmin(c)
     setNoStore(c)
 
     const id = c.req.param('id')
@@ -39,7 +39,7 @@ export const DELETE = createRoute(async (c) => {
       notFound('topic not found')
     }
 
-    const deleted = deleteTopic(id)
+    const deleted = await deleteTopic(c.env.LMS_DB, id)
     if (!deleted) {
       notFound('topic not found')
     }

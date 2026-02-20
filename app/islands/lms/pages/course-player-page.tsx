@@ -294,7 +294,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
                     <Checkbox
                       checked={isComplete(lesson.id)}
                       onCheckedChange={() => void handleToggleComplete(lesson.id)}
-                      onClick={(event) => event.stopPropagation()}
+                      onClick={(event: MouseEvent) => event.stopPropagation()}
                       class='shrink-0'
                     />
                     <Video class='h-3.5 w-3.5 shrink-0 text-[hsl(var(--muted-foreground))]' />

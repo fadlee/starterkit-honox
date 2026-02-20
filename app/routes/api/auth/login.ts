@@ -25,12 +25,12 @@ export const POST = createRoute(async (c) => {
     const username = requireString(body.username, 'username')
     const password = requireString(body.password, 'password')
 
-    const user = authenticateUser(username, password)
+    const user = await authenticateUser(c.env.LMS_DB, username, password)
     if (!user) {
       unauthorized('username or password is invalid')
     }
 
-    setSessionCookie(c, user.id)
+    await setSessionCookie(c, user.id)
     return c.json(user, 200)
   } catch (error) {
     return handleApiError(c, error)

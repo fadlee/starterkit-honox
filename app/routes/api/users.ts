@@ -6,9 +6,9 @@ import { handleApiError, setNoStore } from '@/lib/server/api-utils'
 
 export default createRoute(async (c) => {
   try {
-    requireAdmin(c)
+    await requireAdmin(c)
     setNoStore(c)
-    return c.json(listUsers(), 200)
+    return c.json(await listUsers(c.env.LMS_DB), 200)
   } catch (error) {
     return handleApiError(c, error)
   }

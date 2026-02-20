@@ -5,12 +5,17 @@
     "dev": "vite",
     "dev:portless": "portless ahwal-course-honox vite",
     "build": "vite build --mode client && vite build",
+    "typecheck": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply LMS_DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply LMS_DB --remote",
+    "db:seed:local": "wrangler d1 execute LMS_DB --local --file=./migrations/seeds/0001_seed.sql",
     "preview": "bun run build && wrangler dev",
     "deploy": "bun run build && wrangler deploy"
   },
   "private": true,
   "dependencies": {
     "@hotwired/turbo": "^8.0.23",
+    "drizzle-orm": "^0.45.1",
     "hono": "^4.11.7",
     "honox": "0.1.52"
   },
@@ -20,6 +25,7 @@
     "@hono/vite-dev-server": "^0.18.2",
     "@tailwindcss/vite": "^4.0.9",
     "@types/node": "^25.3.0",
+    "drizzle-kit": "^0.31.9",
     "tailwindcss": "^4.0.9",
     "vite": "^6.3.5",
     "vite-tsconfig-paths": "^6.0.5",

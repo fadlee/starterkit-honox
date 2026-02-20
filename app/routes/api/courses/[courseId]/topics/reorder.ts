@@ -17,7 +17,7 @@ type Body = {
 
 export const POST = createRoute(async (c) => {
   try {
-    requireAdmin(c)
+    await requireAdmin(c)
     setNoStore(c)
 
     const courseId = c.req.param('courseId')
@@ -25,7 +25,7 @@ export const POST = createRoute(async (c) => {
       notFound('course not found')
     }
 
-    const course = getCourseById(courseId)
+    const course = await getCourseById(c.env.LMS_DB, courseId)
     if (!course) {
       notFound('course not found')
     }
@@ -33,7 +33,7 @@ export const POST = createRoute(async (c) => {
     const body = await readJsonBody<Body>(c)
     const orderedIds = requireStringArray(body.orderedIds, 'orderedIds')
 
-    const ok = reorderTopics(courseId, orderedIds)
+    const ok = await reorderTopics(c.env.LMS_DB, courseId, orderedIds)
     if (!ok) {
       badRequest('orderedIds is invalid')
     }

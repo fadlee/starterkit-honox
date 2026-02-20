@@ -1,12 +1,11 @@
-import type { JSX } from 'hono/jsx'
-
 import { cn } from '@/lib/cn'
 
-type IconProps = JSX.IntrinsicElements['svg']
+type IconProps = {
+  class?: string
+  [key: string]: unknown
+}
 
-type IconFactory = (props: IconProps) => JSX.Element
-
-function createIcon(pathD: string): IconFactory {
+function createIcon(pathD: string) {
   return function Icon(props: IconProps) {
     const { class: className, ...rest } = props
     return (

@@ -17,8 +17,8 @@ function isSecureRequest(c: Context) {
   return url.protocol === 'https:'
 }
 
-export function setSessionCookie(c: Context, userId: string): string {
-  const sessionId = createSession(userId)
+export async function setSessionCookie(c: Context, userId: string): Promise<string> {
+  const sessionId = await createSession(c.env.LMS_DB, userId)
   setCookie(c, COOKIE_NAME, sessionId, {
     path: '/',
     httpOnly: true,
@@ -29,10 +29,10 @@ export function setSessionCookie(c: Context, userId: string): string {
   return sessionId
 }
 
-export function clearSessionCookie(c: Context): void {
+export async function clearSessionCookie(c: Context): Promise<void> {
   const sessionId = getCookie(c, COOKIE_NAME)
   if (sessionId) {
-    deleteSession(sessionId)
+    await deleteSession(c.env.LMS_DB, sessionId)
   }
 
   deleteCookie(c, COOKIE_NAME, {
@@ -40,21 +40,21 @@ export function clearSessionCookie(c: Context): void {
   })
 }
 
-export function getSessionUser(c: Context): User | null {
+export async function getSessionUser(c: Context): Promise<User | null> {
   const sessionId = getCookie(c, COOKIE_NAME)
-  return getStoreSessionUser(sessionId)
+  return getStoreSessionUser(c.env.LMS_DB, sessionId)
 }
 
-export function requireAuth(c: Context): User {
-  const user = getSessionUser(c)
+export async function requireAuth(c: Context): Promise<User> {
+  const user = await getSessionUser(c)
   if (!user) {
     unauthorized('auth required')
   }
   return user
 }
 
-export function requireAdmin(c: Context): User {
-  const user = requireAuth(c)
+export async function requireAdmin(c: Context): Promise<User> {
+  const user = await requireAuth(c)
   if (user.role !== 'admin') {
     forbidden('admin required')
   }

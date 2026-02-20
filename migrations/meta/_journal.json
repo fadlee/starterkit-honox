@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1771599427998,
+      "tag": "0000_silent_cable",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1771599677001,
+      "tag": "0001_premium_lenny_balinger",
+      "breakpoints": true
+    }
+  ]
+}

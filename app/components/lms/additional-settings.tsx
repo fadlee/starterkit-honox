@@ -14,6 +14,29 @@ interface AdditionalSettingsProps {
 export function AdditionalSettings({ course, onChange }: AdditionalSettingsProps) {
   return (
     <div class='grid max-w-3xl grid-cols-1 gap-6 md:grid-cols-2'>
+      <Card class='md:col-span-2'>
+        <CardHeader class='pb-3'>
+          <CardTitle class='text-sm'>Publishing</CardTitle>
+        </CardHeader>
+        <CardContent class='space-y-2'>
+          <Label htmlFor='course-status'>Course Status</Label>
+          <select
+            id='course-status'
+            class='flex h-10 w-full rounded-[--radius] border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm'
+            value={course.status || 'draft'}
+            onChange={(event) =>
+              onChange({ status: (event.target as HTMLSelectElement).value as Course['status'] })
+            }
+          >
+            <option value='draft'>Draft</option>
+            <option value='published'>Published</option>
+          </select>
+          <p class='text-xs text-[hsl(var(--muted-foreground))]'>
+            Set to <strong>Published</strong> to make this course visible on the dashboard.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader class='pb-3'>
           <CardTitle class='flex items-center gap-2 text-sm'>

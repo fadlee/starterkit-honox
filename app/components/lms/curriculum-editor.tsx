@@ -170,7 +170,7 @@ export function CurriculumEditor({ courseId }: CurriculumEditorProps) {
               class='overflow-hidden rounded-lg border border-[hsl(var(--border))]'
               draggable
               onDragStart={() => handleTopicDragStart(topic.id)}
-              onDragOver={(event) => event.preventDefault()}
+              onDragOver={(event: DragEvent) => event.preventDefault()}
               onDrop={() => void handleTopicDrop(topic.id)}
             >
               <div
@@ -231,15 +231,15 @@ export function CurriculumEditor({ courseId }: CurriculumEditorProps) {
                       key={lesson.id}
                       class='group flex items-center gap-2 rounded-md border border-[hsl(var(--border))]/50 bg-white p-2 transition-colors hover:border-black/30'
                       draggable
-                      onDragStart={(event) => {
+                      onDragStart={(event: DragEvent) => {
                         event.stopPropagation()
                         handleLessonDragStart(lesson.id, topic.id)
                       }}
-                      onDragOver={(event) => {
+                      onDragOver={(event: DragEvent) => {
                         event.preventDefault()
                         event.stopPropagation()
                       }}
-                      onDrop={(event) => {
+                      onDrop={(event: DragEvent) => {
                         event.stopPropagation()
                         void handleLessonDrop(lesson.id, topic.id)
                       }}

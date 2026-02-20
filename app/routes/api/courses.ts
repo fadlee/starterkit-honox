@@ -8,7 +8,7 @@ import { handleApiError, readJsonBody, setNoStore } from '@/lib/server/api-utils
 export default createRoute(async (c) => {
   try {
     setNoStore(c)
-    return c.json(listCourses(), 200)
+    return c.json(await listCourses(c.env.LMS_DB), 200)
   } catch (error) {
     return handleApiError(c, error)
   }
@@ -16,13 +16,13 @@ export default createRoute(async (c) => {
 
 export const POST = createRoute(async (c) => {
   try {
-    requireAdmin(c)
+    await requireAdmin(c)
     setNoStore(c)
 
     const body = (await readJsonBody<Record<string, unknown>>(c)) ?? {}
     const input = parseCourseCreateInput(body)
 
-    const created = createCourse(input)
+    const created = await createCourse(c.env.LMS_DB, input)
     return c.json(created, 201)
   } catch (error) {
     return handleApiError(c, error)

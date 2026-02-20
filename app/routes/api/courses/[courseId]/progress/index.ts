@@ -6,7 +6,7 @@ import { handleApiError, notFound, setNoStore } from '@/lib/server/api-utils'
 
 export default createRoute(async (c) => {
   try {
-    const user = requireAuth(c)
+    const user = await requireAuth(c)
     setNoStore(c)
 
     const courseId = c.req.param('courseId')
@@ -14,12 +14,12 @@ export default createRoute(async (c) => {
       notFound('course not found')
     }
 
-    const course = getCourseById(courseId)
+    const course = await getCourseById(c.env.LMS_DB, courseId)
     if (!course) {
       notFound('course not found')
     }
 
-    return c.json({ progress: getCourseProgress(user.id, courseId) }, 200)
+    return c.json({ progress: await getCourseProgress(c.env.LMS_DB, user.id, courseId) }, 200)
   } catch (error) {
     return handleApiError(c, error)
   }

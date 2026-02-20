@@ -6,7 +6,7 @@ import { badRequest, handleApiError, notFound, setNoStore } from '@/lib/server/a
 
 export const DELETE = createRoute(async (c) => {
   try {
-    const currentUser = requireAdmin(c)
+    const currentUser = await requireAdmin(c)
     setNoStore(c)
 
     const id = c.req.param('id')
@@ -18,7 +18,7 @@ export const DELETE = createRoute(async (c) => {
       badRequest('cannot delete your own account')
     }
 
-    const deleted = deleteUser(id)
+    const deleted = await deleteUser(c.env.LMS_DB, id)
     if (!deleted) {
       notFound('user not found')
     }

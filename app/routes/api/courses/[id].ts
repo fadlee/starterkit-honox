@@ -14,7 +14,7 @@ export default createRoute(async (c) => {
       notFound('course not found')
     }
 
-    const course = getCourseById(id)
+    const course = await getCourseById(c.env.LMS_DB, id)
     if (!course) {
       notFound('course not found')
     }
@@ -27,7 +27,7 @@ export default createRoute(async (c) => {
 
 export const PATCH = createRoute(async (c) => {
   try {
-    requireAdmin(c)
+    await requireAdmin(c)
     setNoStore(c)
 
     const id = c.req.param('id')
@@ -38,7 +38,7 @@ export const PATCH = createRoute(async (c) => {
     const body = (await readJsonBody<Record<string, unknown>>(c)) ?? {}
     const data = parseCourseUpdateInput(body)
 
-    const updated = updateCourse(id, data)
+    const updated = await updateCourse(c.env.LMS_DB, id, data)
     if (!updated) {
       notFound('course not found')
     }
@@ -51,7 +51,7 @@ export const PATCH = createRoute(async (c) => {
 
 export const DELETE = createRoute(async (c) => {
   try {
-    requireAdmin(c)
+    await requireAdmin(c)
     setNoStore(c)
 
     const id = c.req.param('id')
@@ -59,7 +59,7 @@ export const DELETE = createRoute(async (c) => {
       notFound('course not found')
     }
 
-    const deleted = deleteCourse(id)
+    const deleted = await deleteCourse(c.env.LMS_DB, id)
     if (!deleted) {
       notFound('course not found')
     }

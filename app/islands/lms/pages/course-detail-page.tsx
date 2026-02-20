@@ -352,7 +352,7 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
   )
 }
 
-function InfoRow({ icon, label, value }: { icon: JSX.Element; label: string; value: string }) {
+function InfoRow({ icon, label, value }: { icon: unknown; label: string; value: string }) {
   return (
     <div class='flex items-center justify-between text-sm'>
       <span class='flex items-center gap-2 text-[hsl(var(--muted-foreground))]'>

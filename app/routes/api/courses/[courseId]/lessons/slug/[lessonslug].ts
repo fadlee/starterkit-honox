@@ -13,12 +13,12 @@ export default createRoute(async (c) => {
       notFound('lesson not found')
     }
 
-    const course = getCourseById(courseId)
+    const course = await getCourseById(c.env.LMS_DB, courseId)
     if (!course) {
       notFound('course not found')
     }
 
-    const lesson = getLessonBySlug(courseId, lessonSlug)
+    const lesson = await getLessonBySlug(c.env.LMS_DB, courseId, lessonSlug)
     if (!lesson) {
       notFound('lesson not found')
     }

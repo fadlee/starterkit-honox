@@ -16,7 +16,7 @@ type Body = {
 
 export default createRoute(async (c) => {
   try {
-    const user = requireAuth(c)
+    const user = await requireAuth(c)
     setNoStore(c)
 
     const courseId = c.req.param('courseId')
@@ -25,17 +25,17 @@ export default createRoute(async (c) => {
       notFound('lesson not found')
     }
 
-    const course = getCourseById(courseId)
+    const course = await getCourseById(c.env.LMS_DB, courseId)
     if (!course) {
       notFound('course not found')
     }
 
-    const lesson = getLessonById(lessonId)
+    const lesson = await getLessonById(c.env.LMS_DB, lessonId)
     if (!lesson || lesson.courseId !== courseId) {
       notFound('lesson not found')
     }
 
-    return c.json({ note: getNote(user.id, courseId, lessonId) }, 200)
+    return c.json({ note: await getNote(c.env.LMS_DB, user.id, courseId, lessonId) }, 200)
   } catch (error) {
     return handleApiError(c, error)
   }
@@ -43,7 +43,7 @@ export default createRoute(async (c) => {
 
 export const PUT = createRoute(async (c) => {
   try {
-    const user = requireAuth(c)
+    const user = await requireAuth(c)
     setNoStore(c)
 
     const courseId = c.req.param('courseId')
@@ -52,12 +52,12 @@ export const PUT = createRoute(async (c) => {
       notFound('lesson not found')
     }
 
-    const course = getCourseById(courseId)
+    const course = await getCourseById(c.env.LMS_DB, courseId)
     if (!course) {
       notFound('course not found')
     }
 
-    const lesson = getLessonById(lessonId)
+    const lesson = await getLessonById(c.env.LMS_DB, lessonId)
     if (!lesson || lesson.courseId !== courseId) {
       notFound('lesson not found')
     }
@@ -67,7 +67,7 @@ export const PUT = createRoute(async (c) => {
       badRequest('note must be a string')
     }
 
-    const ok = saveNote(user.id, courseId, lessonId, body.note)
+    const ok = await saveNote(c.env.LMS_DB, user.id, courseId, lessonId, body.note)
     if (!ok) {
       badRequest('please enroll in this course first')
     }

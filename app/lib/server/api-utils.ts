@@ -70,9 +70,12 @@ export function setNoStore(c: Context): void {
 
 export function handleApiError(c: Context, error: unknown) {
   if (error instanceof ApiError) {
-    return c.json({ error: error.message }, error.status)
+    return c.json(
+      { error: error.message },
+      error.status as 400 | 401 | 403 | 404 | 409
+    )
   }
 
   console.error('[api] unexpected error', error)
-  return c.json({ error: 'internal server error' }, 500)
+  return c.json({ error: 'internal server error' }, 500 as 500)
 }

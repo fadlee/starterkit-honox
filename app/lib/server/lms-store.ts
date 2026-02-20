@@ -1,87 +1,57 @@
 import type { Course, Enrollment, Lesson, StoredUser, Topic, User, UserRole } from '@/types/lms'
-
-type SessionRecord = {
-  id: string
-  userId: string
-  createdAt: string
-  expiresAt: number
-}
-
-type LmsMemoryStore = {
-  users: StoredUser[]
-  sessions: SessionRecord[]
-  courses: Course[]
-  topics: Topic[]
-  lessons: Lesson[]
-  enrollments: Enrollment[]
-}
+import { hashPassword, verifyPassword } from '@/lib/server/db/password'
+import {
+  cleanupExpiredSessions,
+  createSession as createSessionRecord,
+  createUserRecord,
+  deleteCourse as deleteCourseRecord,
+  deleteLesson as deleteLessonRecord,
+  deleteSession as deleteSessionRecord,
+  deleteTopic as deleteTopicRecord,
+  deleteUser as deleteUserRecord,
+  enrollCourse as enrollCourseRecord,
+  findCourseBySlugExcludingId,
+  findLessonByCourseSlugExcludingId,
+  findUserAuthByNormalizedUsername,
+  getCourseById as getCourseByIdRecord,
+  getCourseBySlug as getCourseBySlugRecord,
+  getCourseProgress as getCourseProgressRecord,
+  getEnrollment as getEnrollmentRecord,
+  getLessonById as getLessonByIdRecord,
+  getLessonBySlug as getLessonBySlugRecord,
+  getNote as getNoteRecord,
+  getSessionUser as getSessionUserRecord,
+  getTopicById as getTopicByIdRecord,
+  getUserById as getUserByIdRecord,
+  insertCourse,
+  insertLesson,
+  insertTopic,
+  listCourses as listCoursesRecord,
+  listLessonsByTopic as listLessonsByTopicRecord,
+  listTopicsByCourse as listTopicsByCourseRecord,
+  listUsers as listUsersRecord,
+  reorderLessons as reorderLessonsRecord,
+  reorderTopics as reorderTopicsRecord,
+  saveNote as saveNoteRecord,
+  toggleLessonComplete as toggleLessonCompleteRecord,
+  unenrollCourse as unenrollCourseRecord,
+  updateCourse as updateCourseRecord,
+  updateLesson as updateLessonRecord,
+  updateTopic as updateTopicRecord,
+  updateUserRole as updateUserRoleRecord,
+} from '@/lib/server/db/repositories/lms-repo'
 
 type CourseInput = Omit<Course, 'id' | 'createdAt' | 'updatedAt'>
 type TopicInput = Omit<Topic, 'id' | 'createdAt'>
 type LessonInput = Omit<Lesson, 'id' | 'createdAt' | 'updatedAt'>
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __LMS_MOCK_STORE__: LmsMemoryStore | undefined
-}
-
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
-function nowIso() {
-  return new Date().toISOString()
+function normalizeUsername(username: string): string {
+  return username.trim().toLowerCase()
 }
 
-function generateId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 11)}`
-}
-
-function toPublicUser(user: StoredUser): User {
-  return {
-    id: user.id,
-    username: user.username,
-    displayName: user.displayName,
-    role: user.role,
-    createdAt: user.createdAt,
-  }
-}
-
-function buildDefaultStore(): LmsMemoryStore {
-  return {
-    users: [],
-    sessions: [],
-    courses: [],
-    topics: [],
-    lessons: [],
-    enrollments: [],
-  }
-}
-
-function createCourseInternal(store: LmsMemoryStore, data: CourseInput): Course {
-  const timestamp = nowIso()
-  const course: Course = {
-    ...data,
-    id: generateId(),
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  }
-  store.courses.push(course)
-  return course
-}
-
-function createTopicInternal(store: LmsMemoryStore, data: TopicInput): Topic {
-  const topic: Topic = {
-    ...data,
-    id: generateId(),
-    createdAt: nowIso(),
-  }
-  store.topics.push(topic)
-  return topic
-}
-
-function normalizeSlug(title: string) {
+function normalizeSlug(title: string): string {
   return title
     .toLowerCase()
     .normalize('NFD')
@@ -92,582 +62,354 @@ function normalizeSlug(title: string) {
     .trim()
 }
 
-function createLessonInternal(store: LmsMemoryStore, data: LessonInput): Lesson {
-  const timestamp = nowIso()
-  const lesson: Lesson = {
-    ...data,
-    slug: data.slug || normalizeSlug(data.title),
-    id: generateId(),
-    createdAt: timestamp,
-    updatedAt: timestamp,
+async function ensureUniqueCourseSlug(
+  database: D1Database,
+  slug: string,
+  excludeCourseId?: string
+): Promise<string> {
+  const base = normalizeSlug(slug) || 'course'
+  let candidate = base
+  let count = 2
+
+  while (await findCourseBySlugExcludingId(database, candidate, excludeCourseId)) {
+    candidate = `${base}-${count}`
+    count += 1
   }
-  store.lessons.push(lesson)
-  return lesson
+
+  return candidate
 }
 
-function seedStore(store: LmsMemoryStore) {
-  if (store.users.length > 0 || store.courses.length > 0) return
+async function ensureUniqueLessonSlug(
+  database: D1Database,
+  courseId: string,
+  slug: string,
+  excludeLessonId?: string
+): Promise<string> {
+  const base = normalizeSlug(slug) || 'lesson'
+  let candidate = base
+  let count = 2
 
-  const admin: StoredUser = {
-    id: 'admin-001',
-    username: 'admin',
-    password: 'admin123',
-    displayName: 'Administrator',
-    role: 'admin',
-    createdAt: nowIso(),
+  while (await findLessonByCourseSlugExcludingId(database, courseId, candidate, excludeLessonId)) {
+    candidate = `${base}-${count}`
+    count += 1
   }
-  store.users.push(admin)
 
-  const course1 = createCourseInternal(store, {
-    title: 'Belajar Tajwid Al-Quran',
-    slug: 'belajar-tajwid-al-quran',
-    description:
-      'Pelajari ilmu tajwid dari dasar hingga mahir. Kursus ini mencakup hukum nun mati dan tanwin, mad, dan kaidah membaca Al-Quran dengan baik.',
-    difficultyLevel: 'beginner',
-    visibility: 'public',
-    featuredImage: 'https://images.unsplash.com/photo-1609599006353-e629aaabfeae?w=800&q=80',
-    pricingModel: 'free',
-    categories: ['Tajwid', 'Alquran'],
-    tags: ['tajwid', 'quran', 'pemula'],
-    author: 'Ustadz Ahmad',
-    isScheduled: false,
-    scheduleDate: '',
-    isPublicCourse: true,
-    maxStudents: 100,
-    certificate: true,
-    status: 'published',
-  })
-
-  const topic1 = createTopicInternal(store, {
-    courseId: course1.id,
-    title: 'Pengenalan Ilmu Tajwid',
-    order: 0,
-  })
-
-  createLessonInternal(store, {
-    topicId: topic1.id,
-    courseId: course1.id,
-    title: 'Apa Itu Ilmu Tajwid?',
-    slug: 'apa-itu-ilmu-tajwid',
-    content:
-      '<h2>Pengertian Ilmu Tajwid</h2><p>Tajwid adalah ilmu untuk membaca Al-Quran sesuai kaidah yang benar.</p>',
-    featuredImage: '',
-    videoUrl: 'https://www.youtube.com/watch?v=iBWqLsGPNJo',
-    videoPlaybackHours: 0,
-    videoPlaybackMinutes: 12,
-    videoPlaybackSeconds: 30,
-    exerciseFiles: [],
-    isPreview: true,
-    previewType: 'free',
-    order: 0,
-  })
-
-  createLessonInternal(store, {
-    topicId: topic1.id,
-    courseId: course1.id,
-    title: 'Makharijul Huruf',
-    slug: 'makharijul-huruf',
-    content:
-      '<h2>Makharijul Huruf</h2><p>Makharijul huruf adalah tempat keluarnya huruf hijaiyah.</p>',
-    featuredImage: '',
-    videoUrl: 'https://www.youtube.com/watch?v=R0hLA10MbKg',
-    videoPlaybackHours: 0,
-    videoPlaybackMinutes: 15,
-    videoPlaybackSeconds: 45,
-    exerciseFiles: [],
-    isPreview: true,
-    previewType: 'free',
-    order: 1,
-  })
-
-  const topic2 = createTopicInternal(store, {
-    courseId: course1.id,
-    title: 'Hukum Nun Mati dan Tanwin',
-    order: 1,
-  })
-
-  createLessonInternal(store, {
-    topicId: topic2.id,
-    courseId: course1.id,
-    title: 'Izhar Halqi',
-    slug: 'izhar-halqi',
-    content: '<h2>Izhar Halqi</h2><p>Izhar berarti membaca jelas tanpa dengung.</p>',
-    featuredImage: '',
-    videoUrl: 'https://www.youtube.com/watch?v=pEeXz_CFxYc',
-    videoPlaybackHours: 0,
-    videoPlaybackMinutes: 10,
-    videoPlaybackSeconds: 20,
-    exerciseFiles: [],
-    isPreview: false,
-    previewType: 'free',
-    order: 0,
-  })
-
-  const course2 = createCourseInternal(store, {
-    title: 'Pengantar Fiqih Islam',
-    slug: 'pengantar-fiqih-islam',
-    description:
-      'Kursus dasar fiqih Islam meliputi thaharah, shalat, dan puasa dengan pembahasan sistematis untuk pelajar menengah.',
-    difficultyLevel: 'intermediate',
-    visibility: 'public',
-    featuredImage: 'https://images.unsplash.com/photo-1585036156171-384164a8c956?w=800&q=80',
-    pricingModel: 'free',
-    categories: ['Fiqih', 'Ushul Fiqih'],
-    tags: ['fiqih', 'ibadah', 'shalat'],
-    author: 'Ustadzah Fatimah',
-    isScheduled: false,
-    scheduleDate: '',
-    isPublicCourse: true,
-    maxStudents: 80,
-    certificate: true,
-    status: 'published',
-  })
-
-  const topic3 = createTopicInternal(store, {
-    courseId: course2.id,
-    title: 'Bab Thaharah (Bersuci)',
-    order: 0,
-  })
-
-  createLessonInternal(store, {
-    topicId: topic3.id,
-    courseId: course2.id,
-    title: 'Pengertian dan Macam-Macam Thaharah',
-    slug: 'pengertian-dan-macam-macam-thaharah',
-    content: '<h2>Thaharah</h2><p>Thaharah adalah bersuci dari hadats dan najis.</p>',
-    featuredImage: '',
-    videoUrl: 'https://www.youtube.com/watch?v=s8GBf0XEhBQ',
-    videoPlaybackHours: 0,
-    videoPlaybackMinutes: 18,
-    videoPlaybackSeconds: 30,
-    exerciseFiles: [],
-    isPreview: true,
-    previewType: 'free',
-    order: 0,
-  })
-
-  createLessonInternal(store, {
-    topicId: topic3.id,
-    courseId: course2.id,
-    title: 'Tata Cara Wudhu yang Benar',
-    slug: 'tata-cara-wudhu-yang-benar',
-    content: '<h2>Rukun Wudhu</h2><p>Rukun wudhu terdiri dari enam perkara utama.</p>',
-    featuredImage: '',
-    videoUrl: 'https://www.youtube.com/watch?v=mOjFBLSCJaI',
-    videoPlaybackHours: 0,
-    videoPlaybackMinutes: 12,
-    videoPlaybackSeconds: 45,
-    exerciseFiles: [],
-    isPreview: true,
-    previewType: 'free',
-    order: 1,
-  })
+  return candidate
 }
 
-function getStore(): LmsMemoryStore {
-  if (!globalThis.__LMS_MOCK_STORE__) {
-    const store = buildDefaultStore()
-    seedStore(store)
-    globalThis.__LMS_MOCK_STORE__ = store
-  }
-  return globalThis.__LMS_MOCK_STORE__
+export async function listUsers(database: D1Database): Promise<User[]> {
+  return listUsersRecord(database)
 }
 
-function sortByOrder<T extends { order: number }>(items: T[]) {
-  return [...items].sort((a, b) => a.order - b.order)
+export async function getUserById(database: D1Database, id: string): Promise<User | null> {
+  return getUserByIdRecord(database, id)
 }
 
-function cleanupLessonReferences(lessonIds: string[]) {
-  const store = getStore()
-  if (lessonIds.length === 0) return
-
-  const blocked = new Set(lessonIds)
-  for (const enrollment of store.enrollments) {
-    enrollment.completedLessons = enrollment.completedLessons.filter((id) => !blocked.has(id))
-    for (const lessonId of lessonIds) {
-      if (lessonId in enrollment.notes) {
-        delete enrollment.notes[lessonId]
-      }
-    }
+export async function getStoredUserByUsername(
+  database: D1Database,
+  username: string
+): Promise<StoredUser | null> {
+  const user = await findUserAuthByNormalizedUsername(database, normalizeUsername(username))
+  if (!user) return null
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    role: user.role,
+    createdAt: user.createdAt,
+    password: user.passwordHash,
   }
 }
 
-export function listUsers(): User[] {
-  const store = getStore()
-  return store.users.map(toPublicUser)
-}
-
-export function getUserById(id: string): User | null {
-  const store = getStore()
-  const user = store.users.find((item) => item.id === id)
-  return user ? toPublicUser(user) : null
-}
-
-export function getStoredUserByUsername(username: string): StoredUser | null {
-  const store = getStore()
-  const normalized = username.trim().toLowerCase()
-  const found = store.users.find((item) => item.username.toLowerCase() === normalized)
-  return found ?? null
-}
-
-export function createUser(data: { username: string; password: string; displayName: string }): User | null {
-  const store = getStore()
+export async function createUser(
+  database: D1Database,
+  data: { username: string; password: string; displayName: string }
+): Promise<User | null> {
   const normalizedUsername = data.username.trim()
   if (!normalizedUsername) return null
-  const exists = store.users.some((item) => item.username.toLowerCase() === normalizedUsername.toLowerCase())
-  if (exists) return null
 
-  const user: StoredUser = {
-    id: generateId(),
+  const existing = await findUserAuthByNormalizedUsername(
+    database,
+    normalizeUsername(normalizedUsername)
+  )
+  if (existing) return null
+
+  const passwordHash = await hashPassword(data.password)
+  return createUserRecord(database, {
     username: normalizedUsername,
-    password: data.password,
     displayName: data.displayName.trim(),
+    passwordHash,
     role: 'user',
-    createdAt: nowIso(),
+  })
+}
+
+export async function authenticateUser(
+  database: D1Database,
+  username: string,
+  password: string
+): Promise<User | null> {
+  const authUser = await findUserAuthByNormalizedUsername(database, normalizeUsername(username))
+  if (!authUser) return null
+
+  const ok = await verifyPassword(password, authUser.passwordHash)
+  if (!ok) return null
+
+  return {
+    id: authUser.id,
+    username: authUser.username,
+    displayName: authUser.displayName,
+    role: authUser.role,
+    createdAt: authUser.createdAt,
   }
-
-  store.users.push(user)
-  return toPublicUser(user)
 }
 
-export function authenticateUser(username: string, password: string): User | null {
-  const store = getStore()
-  const normalized = username.trim().toLowerCase()
-  const user = store.users.find(
-    (item) => item.username.toLowerCase() === normalized && item.password === password
-  )
-  return user ? toPublicUser(user) : null
+export async function updateUserRole(
+  database: D1Database,
+  userId: string,
+  role: UserRole
+): Promise<User | null> {
+  return updateUserRoleRecord(database, userId, role)
 }
 
-export function updateUserRole(userId: string, role: UserRole): User | null {
-  const store = getStore()
-  const index = store.users.findIndex((item) => item.id === userId)
-  if (index === -1) return null
-
-  const current = store.users[index]
-  const updated: StoredUser = {
-    ...current,
-    role,
-  }
-  store.users[index] = updated
-  return toPublicUser(updated)
+export async function deleteUser(database: D1Database, userId: string): Promise<boolean> {
+  return deleteUserRecord(database, userId)
 }
 
-export function deleteUser(userId: string): boolean {
-  const store = getStore()
-  const index = store.users.findIndex((item) => item.id === userId)
-  if (index === -1) return false
-
-  store.users.splice(index, 1)
-  store.sessions = store.sessions.filter((session) => session.userId !== userId)
-  store.enrollments = store.enrollments.filter((enrollment) => enrollment.userId !== userId)
-  return true
-}
-
-export function createSession(userId: string): string {
-  const store = getStore()
+export async function createSession(database: D1Database, userId: string): Promise<string> {
   const now = Date.now()
-  store.sessions = store.sessions.filter((session) => session.expiresAt > now)
-
-  const session: SessionRecord = {
-    id: generateId(),
-    userId,
-    createdAt: nowIso(),
-    expiresAt: now + SESSION_TTL_MS,
-  }
-  store.sessions.push(session)
-  return session.id
+  await cleanupExpiredSessions(database, now)
+  return createSessionRecord(database, userId, now + SESSION_TTL_MS)
 }
 
-export function getSessionUser(sessionId: string | undefined): User | null {
+export async function getSessionUser(
+  database: D1Database,
+  sessionId: string | undefined
+): Promise<User | null> {
   if (!sessionId) return null
-  const store = getStore()
-  const now = Date.now()
-  const session = store.sessions.find((item) => item.id === sessionId)
-  if (!session) return null
-  if (session.expiresAt <= now) {
-    store.sessions = store.sessions.filter((item) => item.id !== session.id)
-    return null
-  }
-
-  const user = store.users.find((item) => item.id === session.userId)
-  if (!user) return null
-  return toPublicUser(user)
+  await cleanupExpiredSessions(database)
+  return getSessionUserRecord(database, sessionId)
 }
 
-export function deleteSession(sessionId: string | undefined): void {
+export async function deleteSession(
+  database: D1Database,
+  sessionId: string | undefined
+): Promise<void> {
   if (!sessionId) return
-  const store = getStore()
-  store.sessions = store.sessions.filter((session) => session.id !== sessionId)
+  await deleteSessionRecord(database, sessionId)
 }
 
-export function listCourses(): Course[] {
-  const store = getStore()
-  return [...store.courses]
+export async function listCourses(database: D1Database): Promise<Course[]> {
+  return listCoursesRecord(database)
 }
 
-export function getCourseById(courseId: string): Course | null {
-  const store = getStore()
-  return store.courses.find((course) => course.id === courseId) ?? null
+export async function getCourseById(
+  database: D1Database,
+  courseId: string
+): Promise<Course | null> {
+  return getCourseByIdRecord(database, courseId)
 }
 
-export function getCourseBySlug(slug: string): Course | null {
-  const store = getStore()
-  return store.courses.find((course) => course.slug === slug) ?? null
+export async function getCourseBySlug(
+  database: D1Database,
+  slug: string
+): Promise<Course | null> {
+  return getCourseBySlugRecord(database, slug)
 }
 
-export function createCourse(data: CourseInput): Course {
-  const store = getStore()
-  return createCourseInternal(store, data)
-}
-
-export function updateCourse(courseId: string, data: Partial<Course>): Course | null {
-  const store = getStore()
-  const index = store.courses.findIndex((course) => course.id === courseId)
-  if (index === -1) return null
-
-  const current = store.courses[index]
-  const updated: Course = {
-    ...current,
+export async function createCourse(
+  database: D1Database,
+  data: CourseInput
+): Promise<Course> {
+  const slug = await ensureUniqueCourseSlug(database, data.slug || data.title)
+  return insertCourse(database, {
     ...data,
-    id: current.id,
-    createdAt: current.createdAt,
-    updatedAt: nowIso(),
+    slug,
+  })
+}
+
+export async function updateCourse(
+  database: D1Database,
+  courseId: string,
+  data: Partial<Course>
+): Promise<Course | null> {
+  const current = await getCourseByIdRecord(database, courseId)
+  if (!current) return null
+
+  const payload = { ...data }
+  if (payload.slug !== undefined) {
+    payload.slug = await ensureUniqueCourseSlug(database, payload.slug, courseId)
   }
 
-  store.courses[index] = updated
-  return updated
+  return updateCourseRecord(database, courseId, payload)
 }
 
-export function deleteCourse(courseId: string): boolean {
-  const store = getStore()
-  const index = store.courses.findIndex((course) => course.id === courseId)
-  if (index === -1) return false
-
-  store.courses.splice(index, 1)
-
-  const removedTopicIds = store.topics.filter((topic) => topic.courseId === courseId).map((topic) => topic.id)
-  store.topics = store.topics.filter((topic) => topic.courseId !== courseId)
-
-  const removedLessonIds = store.lessons
-    .filter((lesson) => lesson.courseId === courseId || removedTopicIds.includes(lesson.topicId))
-    .map((lesson) => lesson.id)
-  store.lessons = store.lessons.filter(
-    (lesson) => lesson.courseId !== courseId && !removedTopicIds.includes(lesson.topicId)
-  )
-
-  cleanupLessonReferences(removedLessonIds)
-  store.enrollments = store.enrollments.filter((enrollment) => enrollment.courseId !== courseId)
-
-  return true
+export async function deleteCourse(database: D1Database, courseId: string): Promise<boolean> {
+  return deleteCourseRecord(database, courseId)
 }
 
-export function listTopicsByCourse(courseId: string): Topic[] {
-  const store = getStore()
-  return sortByOrder(store.topics.filter((topic) => topic.courseId === courseId))
+export async function listTopicsByCourse(
+  database: D1Database,
+  courseId: string
+): Promise<Topic[]> {
+  return listTopicsByCourseRecord(database, courseId)
 }
 
-export function createTopic(data: TopicInput): Topic {
-  const store = getStore()
-  return createTopicInternal(store, data)
+export async function createTopic(
+  database: D1Database,
+  data: TopicInput
+): Promise<Topic> {
+  return insertTopic(database, data)
 }
 
-export function updateTopic(topicId: string, data: Partial<Topic>): Topic | null {
-  const store = getStore()
-  const index = store.topics.findIndex((topic) => topic.id === topicId)
-  if (index === -1) return null
+export async function updateTopic(
+  database: D1Database,
+  topicId: string,
+  data: Partial<Topic>
+): Promise<Topic | null> {
+  return updateTopicRecord(database, topicId, data)
+}
 
-  const current = store.topics[index]
-  const updated: Topic = {
-    ...current,
+export async function deleteTopic(database: D1Database, topicId: string): Promise<boolean> {
+  return deleteTopicRecord(database, topicId)
+}
+
+export async function reorderTopics(
+  database: D1Database,
+  courseId: string,
+  orderedIds: string[]
+): Promise<boolean> {
+  return reorderTopicsRecord(database, courseId, orderedIds)
+}
+
+export async function getTopicById(
+  database: D1Database,
+  topicId: string
+): Promise<Topic | null> {
+  return getTopicByIdRecord(database, topicId)
+}
+
+export async function listLessonsByTopic(
+  database: D1Database,
+  topicId: string
+): Promise<Lesson[]> {
+  return listLessonsByTopicRecord(database, topicId)
+}
+
+export async function createLesson(
+  database: D1Database,
+  data: LessonInput
+): Promise<Lesson> {
+  const slug = await ensureUniqueLessonSlug(database, data.courseId, data.slug || data.title)
+  return insertLesson(database, {
     ...data,
-    id: current.id,
-    createdAt: current.createdAt,
+    slug,
+  })
+}
+
+export async function updateLesson(
+  database: D1Database,
+  lessonId: string,
+  data: Partial<Lesson>
+): Promise<Lesson | null> {
+  const current = await getLessonByIdRecord(database, lessonId)
+  if (!current) return null
+
+  const payload = { ...data }
+  if (payload.slug !== undefined) {
+    payload.slug = await ensureUniqueLessonSlug(
+      database,
+      current.courseId,
+      payload.slug,
+      lessonId
+    )
   }
 
-  store.topics[index] = updated
-  return updated
+  return updateLessonRecord(database, lessonId, payload)
 }
 
-export function deleteTopic(topicId: string): boolean {
-  const store = getStore()
-  const index = store.topics.findIndex((topic) => topic.id === topicId)
-  if (index === -1) return false
-
-  store.topics.splice(index, 1)
-
-  const removedLessonIds = store.lessons
-    .filter((lesson) => lesson.topicId === topicId)
-    .map((lesson) => lesson.id)
-  store.lessons = store.lessons.filter((lesson) => lesson.topicId !== topicId)
-  cleanupLessonReferences(removedLessonIds)
-
-  return true
+export async function deleteLesson(database: D1Database, lessonId: string): Promise<boolean> {
+  return deleteLessonRecord(database, lessonId)
 }
 
-export function reorderTopics(courseId: string, orderedIds: string[]): boolean {
-  const store = getStore()
-  const topics = store.topics.filter((topic) => topic.courseId === courseId)
-  if (topics.length !== orderedIds.length) return false
-
-  const known = new Set(topics.map((topic) => topic.id))
-  for (const id of orderedIds) {
-    if (!known.has(id)) return false
-  }
-
-  for (const topic of topics) {
-    const order = orderedIds.indexOf(topic.id)
-    topic.order = order
-  }
-
-  return true
+export async function reorderLessons(
+  database: D1Database,
+  topicId: string,
+  orderedIds: string[]
+): Promise<boolean> {
+  return reorderLessonsRecord(database, topicId, orderedIds)
 }
 
-export function getTopicById(topicId: string): Topic | null {
-  const store = getStore()
-  return store.topics.find((topic) => topic.id === topicId) ?? null
+export async function getLessonById(
+  database: D1Database,
+  lessonId: string
+): Promise<Lesson | null> {
+  return getLessonByIdRecord(database, lessonId)
 }
 
-export function listLessonsByTopic(topicId: string): Lesson[] {
-  const store = getStore()
-  return sortByOrder(store.lessons.filter((lesson) => lesson.topicId === topicId))
+export async function getLessonBySlug(
+  database: D1Database,
+  courseId: string,
+  lessonSlug: string
+): Promise<Lesson | null> {
+  return getLessonBySlugRecord(database, courseId, lessonSlug)
 }
 
-export function createLesson(data: LessonInput): Lesson {
-  const store = getStore()
-  return createLessonInternal(store, data)
+export async function getEnrollment(
+  database: D1Database,
+  userId: string,
+  courseId: string
+): Promise<Enrollment | null> {
+  return getEnrollmentRecord(database, userId, courseId)
 }
 
-export function updateLesson(lessonId: string, data: Partial<Lesson>): Lesson | null {
-  const store = getStore()
-  const index = store.lessons.findIndex((lesson) => lesson.id === lessonId)
-  if (index === -1) return null
-
-  const current = store.lessons[index]
-  const updated: Lesson = {
-    ...current,
-    ...data,
-    id: current.id,
-    createdAt: current.createdAt,
-    updatedAt: nowIso(),
-  }
-
-  store.lessons[index] = updated
-  return updated
+export async function enrollCourse(
+  database: D1Database,
+  userId: string,
+  courseId: string
+): Promise<Enrollment> {
+  return enrollCourseRecord(database, userId, courseId)
 }
 
-export function deleteLesson(lessonId: string): boolean {
-  const store = getStore()
-  const index = store.lessons.findIndex((lesson) => lesson.id === lessonId)
-  if (index === -1) return false
-
-  store.lessons.splice(index, 1)
-  cleanupLessonReferences([lessonId])
-  return true
+export async function unenrollCourse(
+  database: D1Database,
+  userId: string,
+  courseId: string
+): Promise<boolean> {
+  return unenrollCourseRecord(database, userId, courseId)
 }
 
-export function reorderLessons(topicId: string, orderedIds: string[]): boolean {
-  const store = getStore()
-  const lessons = store.lessons.filter((lesson) => lesson.topicId === topicId)
-  if (lessons.length !== orderedIds.length) return false
-
-  const known = new Set(lessons.map((lesson) => lesson.id))
-  for (const id of orderedIds) {
-    if (!known.has(id)) return false
-  }
-
-  for (const lesson of lessons) {
-    const order = orderedIds.indexOf(lesson.id)
-    lesson.order = order
-  }
-
-  return true
+export async function toggleLessonComplete(
+  database: D1Database,
+  userId: string,
+  courseId: string,
+  lessonId: string
+): Promise<boolean | null> {
+  return toggleLessonCompleteRecord(database, userId, courseId, lessonId)
 }
 
-export function getLessonById(lessonId: string): Lesson | null {
-  const store = getStore()
-  return store.lessons.find((lesson) => lesson.id === lessonId) ?? null
+export async function getCourseProgress(
+  database: D1Database,
+  userId: string,
+  courseId: string
+): Promise<number> {
+  return getCourseProgressRecord(database, userId, courseId)
 }
 
-export function getLessonBySlug(courseId: string, lessonSlug: string): Lesson | null {
-  const store = getStore()
-  const topics = store.topics.filter((topic) => topic.courseId === courseId)
-  const topicIds = new Set(topics.map((topic) => topic.id))
-  return (
-    store.lessons.find((lesson) => topicIds.has(lesson.topicId) && lesson.slug === lessonSlug) ?? null
-  )
+export async function saveNote(
+  database: D1Database,
+  userId: string,
+  courseId: string,
+  lessonId: string,
+  note: string
+): Promise<boolean> {
+  return saveNoteRecord(database, userId, courseId, lessonId, note)
 }
 
-export function getEnrollment(userId: string, courseId: string): Enrollment | null {
-  const store = getStore()
-  return (
-    store.enrollments.find((enrollment) => enrollment.userId === userId && enrollment.courseId === courseId) ??
-    null
-  )
-}
-
-export function enrollCourse(userId: string, courseId: string): Enrollment {
-  const store = getStore()
-  const existing = getEnrollment(userId, courseId)
-  if (existing) return existing
-
-  const enrollment: Enrollment = {
-    id: generateId(),
-    userId,
-    courseId,
-    enrolledAt: nowIso(),
-    completedLessons: [],
-    notes: {},
-  }
-
-  store.enrollments.push(enrollment)
-  return enrollment
-}
-
-export function unenrollCourse(userId: string, courseId: string): boolean {
-  const store = getStore()
-  const before = store.enrollments.length
-  store.enrollments = store.enrollments.filter(
-    (enrollment) => !(enrollment.userId === userId && enrollment.courseId === courseId)
-  )
-  return before !== store.enrollments.length
-}
-
-export function toggleLessonComplete(userId: string, courseId: string, lessonId: string): boolean | null {
-  const enrollment = getEnrollment(userId, courseId)
-  if (!enrollment) return null
-
-  const index = enrollment.completedLessons.indexOf(lessonId)
-  if (index === -1) {
-    enrollment.completedLessons.push(lessonId)
-    return true
-  }
-
-  enrollment.completedLessons.splice(index, 1)
-  return false
-}
-
-export function getCourseProgress(userId: string, courseId: string): number {
-  const enrollment = getEnrollment(userId, courseId)
-  if (!enrollment) return 0
-
-  const topics = listTopicsByCourse(courseId)
-  const topicIds = new Set(topics.map((topic) => topic.id))
-  const totalLessons = getStore().lessons.filter((lesson) => topicIds.has(lesson.topicId)).length
-
-  if (totalLessons === 0) return 0
-  return Math.round((enrollment.completedLessons.length / totalLessons) * 100)
-}
-
-export function saveNote(userId: string, courseId: string, lessonId: string, note: string): boolean {
-  const enrollment = getEnrollment(userId, courseId)
-  if (!enrollment) return false
-  enrollment.notes[lessonId] = note
-  return true
-}
-
-export function getNote(userId: string, courseId: string, lessonId: string): string {
-  const enrollment = getEnrollment(userId, courseId)
-  if (!enrollment) return ''
-  return enrollment.notes[lessonId] || ''
+export async function getNote(
+  database: D1Database,
+  userId: string,
+  courseId: string,
+  lessonId: string
+): Promise<string> {
+  return getNoteRecord(database, userId, courseId, lessonId)
 }

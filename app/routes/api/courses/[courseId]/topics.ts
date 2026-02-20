@@ -23,12 +23,12 @@ export default createRoute(async (c) => {
       notFound('course not found')
     }
 
-    const course = getCourseById(courseId)
+    const course = await getCourseById(c.env.LMS_DB, courseId)
     if (!course) {
       notFound('course not found')
     }
 
-    return c.json(listTopicsByCourse(courseId), 200)
+    return c.json(await listTopicsByCourse(c.env.LMS_DB, courseId), 200)
   } catch (error) {
     return handleApiError(c, error)
   }
@@ -36,7 +36,7 @@ export default createRoute(async (c) => {
 
 export const POST = createRoute(async (c) => {
   try {
-    requireAdmin(c)
+    await requireAdmin(c)
     setNoStore(c)
 
     const courseId = c.req.param('courseId')
@@ -44,16 +44,16 @@ export const POST = createRoute(async (c) => {
       notFound('course not found')
     }
 
-    const course = getCourseById(courseId)
+    const course = await getCourseById(c.env.LMS_DB, courseId)
     if (!course) {
       notFound('course not found')
     }
 
     const body = (await readJsonBody<Record<string, unknown>>(c)) ?? {}
-    const currentTopics = listTopicsByCourse(courseId)
+    const currentTopics = await listTopicsByCourse(c.env.LMS_DB, courseId)
     const input = parseTopicCreateInput(body, currentTopics.length, courseId)
 
-    const topic = createTopic(input)
+    const topic = await createTopic(c.env.LMS_DB, input)
     return c.json(topic, 201)
   } catch (error) {
     return handleApiError(c, error)

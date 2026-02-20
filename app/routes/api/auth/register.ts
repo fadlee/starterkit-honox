@@ -25,12 +25,12 @@ export const POST = createRoute(async (c) => {
     const password = requireString(body.password, 'password')
     const displayName = requireString(body.displayName, 'displayName')
 
-    const user = createUser({ username, password, displayName })
+    const user = await createUser(c.env.LMS_DB, { username, password, displayName })
     if (!user) {
       conflict('username already used')
     }
 
-    setSessionCookie(c, user.id)
+    await setSessionCookie(c, user.id)
     return c.json(user, 201)
   } catch (error) {
     return handleApiError(c, error)

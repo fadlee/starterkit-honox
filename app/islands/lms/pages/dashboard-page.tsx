@@ -17,12 +17,12 @@ export default function DashboardPage() {
   const [search, setSearch] = useState('')
   const [levelFilter, setLevelFilter] = useState<string>('all')
 
-  const refreshCourses = () => {
-    setCourses(getCourses())
+  const refreshCourses = async () => {
+    setCourses(await getCourses())
   }
 
   useEffect(() => {
-    refreshCourses()
+    void refreshCourses()
   }, [])
 
   const filteredCourses = useMemo(
@@ -35,14 +35,14 @@ export default function DashboardPage() {
     [courses, search, levelFilter]
   )
 
-  const handleDelete = (id: string) => {
-    deleteCourse(id)
-    refreshCourses()
+  const handleDelete = async (id: string) => {
+    await deleteCourse(id)
+    await refreshCourses()
     toast({ title: 'Course deleted', variant: 'success' })
   }
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     go('/login')
   }
 
@@ -84,7 +84,7 @@ export default function DashboardPage() {
               <Button
                 variant='ghost'
                 size='sm'
-                onClick={handleLogout}
+                onClick={() => void handleLogout()}
                 class='gap-1.5 text-[hsl(var(--muted-foreground))]'
               >
                 <LogOut class='h-4 w-4' /> Logout
@@ -142,7 +142,7 @@ export default function DashboardPage() {
                 key={course.id}
                 course={course}
                 onEdit={isAdmin ? (id) => go(`/admin/courses/${id}`) : undefined}
-                onDelete={isAdmin ? handleDelete : undefined}
+                onDelete={isAdmin ? (id) => void handleDelete(id) : undefined}
               />
             ))}
           </div>

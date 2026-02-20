@@ -1,4 +1,4 @@
-import { useState } from 'hono/jsx'
+import { useEffect, useState } from 'hono/jsx'
 
 import type { Lesson, Topic } from '@/types/lms'
 import {
@@ -35,29 +35,34 @@ import {
 
 interface CurriculumEditorProps {
   courseId: string
-  refreshKey?: number
-  onRefresh?: () => void
 }
 
-export function CurriculumEditor({ courseId, refreshKey, onRefresh }: CurriculumEditorProps) {
-  void refreshKey
+export function CurriculumEditor({ courseId }: CurriculumEditorProps) {
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set())
   const [editingTopic, setEditingTopic] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
+  const [topics, setTopics] = useState<Topic[]>([])
+  const [lessonsByTopic, setLessonsByTopic] = useState<Record<string, Lesson[]>>({})
   const [lessonModal, setLessonModal] = useState<{
     topicId: string
     topicTitle: string
     lesson?: Lesson
   } | null>(null)
   const [showImportModal, setShowImportModal] = useState(false)
-  const [, setRefreshCount] = useState(0)
 
-  const refresh = () => {
-    setRefreshCount((count) => count + 1)
-    onRefresh?.()
+  const refresh = async () => {
+    const nextTopics = await getTopicsByCourse(courseId)
+    const lessonEntries = await Promise.all(
+      nextTopics.map(async (topic) => [topic.id, await getLessonsByTopic(topic.id)] as const)
+    )
+
+    setTopics(nextTopics)
+    setLessonsByTopic(Object.fromEntries(lessonEntries))
   }
 
-  const topics = getTopicsByCourse(courseId)
+  useEffect(() => {
+    void refresh()
+  }, [courseId])
 
   const toggleTopic = (id: string) => {
     setExpandedTopics((prev) => {
@@ -72,18 +77,18 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
     setExpandedTopics(new Set(topics.map((topic) => topic.id)))
   }
 
-  const handleAddTopic = () => {
+  const handleAddTopic = async () => {
     const order = topics.length
-    const topic = createTopic({ courseId, title: `Topic ${order + 1}`, order })
+    const topic = await createTopic({ courseId, title: `Topic ${order + 1}`, order })
     setExpandedTopics((prev) => new Set(prev).add(topic.id))
     toast({ title: 'Topic added', variant: 'success' })
-    refresh()
+    await refresh()
   }
 
-  const handleDeleteTopic = (id: string) => {
-    deleteTopic(id)
+  const handleDeleteTopic = async (id: string) => {
+    await deleteTopic(id)
     toast({ title: 'Topic deleted', variant: 'success' })
-    refresh()
+    await refresh()
   }
 
   const startEditTopic = (topic: Topic) => {
@@ -91,23 +96,23 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
     setEditTitle(topic.title)
   }
 
-  const saveEditTopic = () => {
+  const saveEditTopic = async () => {
     if (!editingTopic || !editTitle.trim()) return
-    updateTopic(editingTopic, { title: editTitle.trim() })
+    await updateTopic(editingTopic, { title: editTitle.trim() })
     setEditingTopic(null)
-    refresh()
+    await refresh()
   }
 
-  const handleDeleteLesson = (id: string) => {
-    deleteLesson(id)
+  const handleDeleteLesson = async (id: string) => {
+    await deleteLesson(id)
     toast({ title: 'Lesson deleted', variant: 'success' })
-    refresh()
+    await refresh()
   }
 
   const [dragTopicId, setDragTopicId] = useState<string | null>(null)
 
   const handleTopicDragStart = (id: string) => setDragTopicId(id)
-  const handleTopicDrop = (targetId: string) => {
+  const handleTopicDrop = async (targetId: string) => {
     if (!dragTopicId || dragTopicId === targetId) return
 
     const ids = topics.map((topic) => topic.id)
@@ -116,9 +121,9 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
 
     ids.splice(fromIndex, 1)
     ids.splice(toIndex, 0, dragTopicId)
-    reorderTopics(courseId, ids)
+    await reorderTopics(courseId, ids)
     setDragTopicId(null)
-    refresh()
+    await refresh()
   }
 
   const [dragLessonId, setDragLessonId] = useState<string | null>(null)
@@ -129,20 +134,20 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
     setDragLessonTopicId(topicId)
   }
 
-  const handleLessonDrop = (targetLessonId: string, topicId: string) => {
+  const handleLessonDrop = async (targetLessonId: string, topicId: string) => {
     if (!dragLessonId || dragLessonId === targetLessonId || dragLessonTopicId !== topicId) return
 
-    const lessons = getLessonsByTopic(topicId)
+    const lessons = lessonsByTopic[topicId] || []
     const ids = lessons.map((lesson) => lesson.id)
     const fromIndex = ids.indexOf(dragLessonId)
     const toIndex = ids.indexOf(targetLessonId)
 
     ids.splice(fromIndex, 1)
     ids.splice(toIndex, 0, dragLessonId)
-    reorderLessons(topicId, ids)
+    await reorderLessons(topicId, ids)
     setDragLessonId(null)
     setDragLessonTopicId(null)
-    refresh()
+    await refresh()
   }
 
   return (
@@ -156,7 +161,7 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
 
       <div class='space-y-3'>
         {topics.map((topic) => {
-          const lessons = getLessonsByTopic(topic.id)
+          const lessons = lessonsByTopic[topic.id] || []
           const isExpanded = expandedTopics.has(topic.id)
 
           return (
@@ -166,7 +171,7 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
               draggable
               onDragStart={() => handleTopicDragStart(topic.id)}
               onDragOver={(event) => event.preventDefault()}
-              onDrop={() => handleTopicDrop(topic.id)}
+              onDrop={() => void handleTopicDrop(topic.id)}
             >
               <div
                 class='flex cursor-pointer items-center gap-2 bg-[hsl(var(--muted))]/40 p-3'
@@ -179,9 +184,9 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
                   <Input
                     value={editTitle}
                     onInput={(event) => setEditTitle((event.target as HTMLInputElement).value)}
-                    onBlur={saveEditTopic}
+                    onBlur={() => void saveEditTopic()}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter') saveEditTopic()
+                      if (event.key === 'Enter') void saveEditTopic()
                     }}
                     class='h-7 flex-1 text-sm'
                     autoFocus
@@ -199,9 +204,9 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
                   variant='ghost'
                   size='icon'
                   class='h-7 w-7'
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    startEditTopic(topic)
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      startEditTopic(topic)
                   }}
                 >
                   <Pencil class='h-3.5 w-3.5' />
@@ -210,10 +215,10 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
                   variant='ghost'
                   size='icon'
                   class='h-7 w-7 text-red-600'
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    handleDeleteTopic(topic.id)
-                  }}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      void handleDeleteTopic(topic.id)
+                    }}
                 >
                   <Trash2 class='h-3.5 w-3.5' />
                 </Button>
@@ -236,7 +241,7 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
                       }}
                       onDrop={(event) => {
                         event.stopPropagation()
-                        handleLessonDrop(lesson.id, topic.id)
+                        void handleLessonDrop(lesson.id, topic.id)
                       }}
                     >
                       <GripVertical class='h-3.5 w-3.5 cursor-grab text-[hsl(var(--muted-foreground))]' />
@@ -279,7 +284,7 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
                         variant='ghost'
                         size='icon'
                         class='h-6 w-6 text-red-600 opacity-0 group-hover:opacity-100'
-                        onClick={() => handleDeleteLesson(lesson.id)}
+                        onClick={() => void handleDeleteLesson(lesson.id)}
                       >
                         <Trash2 class='h-3 w-3' />
                       </Button>
@@ -318,7 +323,7 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
       </div>
 
       <div class='flex gap-2'>
-        <Button variant='outline' class='flex-1 gap-2' onClick={handleAddTopic}>
+        <Button variant='outline' class='flex-1 gap-2' onClick={() => void handleAddTopic()}>
           <Plus class='h-4 w-4' /> Add Topic
         </Button>
         <Button variant='outline' class='gap-2' onClick={() => setShowImportModal(true)}>
@@ -334,7 +339,7 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
           lesson={lessonModal.lesson}
           onClose={() => {
             setLessonModal(null)
-            refresh()
+            void refresh()
           }}
         />
       )}
@@ -344,7 +349,7 @@ export function CurriculumEditor({ courseId, refreshKey, onRefresh }: Curriculum
           courseId={courseId}
           onClose={() => {
             setShowImportModal(false)
-            refresh()
+            void refresh()
           }}
         />
       )}

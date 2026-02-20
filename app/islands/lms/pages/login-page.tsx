@@ -12,7 +12,7 @@ import { useAuth } from '@/islands/lms/hooks/use-auth'
 type AuthTab = 'login' | 'register'
 
 export default function LoginPage() {
-  const { user, loading, login, register } = useAuth()
+  const { user, loading, login, register, refresh } = useAuth()
   const [tab, setTab] = useState<AuthTab>('login')
 
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
@@ -25,10 +25,11 @@ export default function LoginPage() {
     }
   }, [loading, user])
 
-  const handleLogin = () => {
-    const nextUser = login(loginForm.username, loginForm.password)
+  const handleLogin = async () => {
+    const nextUser = await login(loginForm.username, loginForm.password)
 
     if (nextUser) {
+      await refresh()
       toast({ title: `Selamat datang, ${nextUser.displayName}!`, variant: 'success' })
       go('/')
     } else {
@@ -36,15 +37,16 @@ export default function LoginPage() {
     }
   }
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!registerForm.username || !registerForm.password || !registerForm.displayName) {
       toast({ title: 'Semua field harus diisi', variant: 'error' })
       return
     }
 
-    const nextUser = register(registerForm)
+    const nextUser = await register(registerForm)
 
     if (nextUser) {
+      await refresh()
       toast({ title: `Akun berhasil dibuat! Selamat datang, ${nextUser.displayName}`, variant: 'success' })
       go('/')
     } else {
@@ -81,7 +83,7 @@ export default function LoginPage() {
               <form
                 onSubmit={(event) => {
                   event.preventDefault()
-                  handleLogin()
+                  void handleLogin()
                 }}
                 class='space-y-4'
               >
@@ -114,7 +116,7 @@ export default function LoginPage() {
                     }
                   />
                 </div>
-                <Button type='button' onClick={handleLogin} class='w-full gap-2'>
+                <Button type='button' onClick={() => void handleLogin()} class='w-full gap-2'>
                   <LogIn class='h-4 w-4' /> Login
                 </Button>
                 <p class='text-center text-xs text-[hsl(var(--muted-foreground))]'>
@@ -126,7 +128,7 @@ export default function LoginPage() {
               <form
                 onSubmit={(event) => {
                   event.preventDefault()
-                  handleRegister()
+                  void handleRegister()
                 }}
                 class='space-y-4'
               >
@@ -173,7 +175,7 @@ export default function LoginPage() {
                     }
                   />
                 </div>
-                <Button type='button' onClick={handleRegister} class='w-full gap-2'>
+                <Button type='button' onClick={() => void handleRegister()} class='w-full gap-2'>
                   <UserPlus class='h-4 w-4' /> Daftar
                 </Button>
               </form>

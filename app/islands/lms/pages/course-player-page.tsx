@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/lib/toast'
 import {
   ArrowLeft,
   BookOpen,
@@ -74,66 +75,94 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
 
   const courseId = course?.id
 
-  const refreshProgress = useCallback(() => {
+  const refreshProgress = useCallback(async () => {
     if (!courseId) return
-    setProgress(getCourseProgress(courseId))
-    const enrollment = getEnrollment(courseId)
+
+    const [nextProgress, enrollment] = await Promise.all([
+      getCourseProgress(courseId),
+      getEnrollment(courseId),
+    ])
+
+    setProgress(nextProgress)
     setCompletedLessons(enrollment?.completedLessons || [])
   }, [courseId])
 
   useEffect(() => {
-    if (!courseslug) return
+    let active = true
 
-    const resolvedCourse = getCourseBySlug(courseslug)
-    if (!resolvedCourse) {
-      replace('/')
-      return
-    }
+    const load = async () => {
+      if (!courseslug) return
 
-    setCourse(resolvedCourse)
+      const resolvedCourse = await getCourseBySlug(courseslug)
+      if (!resolvedCourse) {
+        replace('/')
+        return
+      }
 
-    const resolvedId = resolvedCourse.id
-    if (!getEnrollment(resolvedId)) {
-      enrollCourse(resolvedId)
-    }
+      const resolvedId = resolvedCourse.id
 
-    const resolvedTopics = getTopicsByCourse(resolvedId).map((topic) => ({
-      ...topic,
-      lessons: getLessonsByTopic(topic.id),
-    }))
-    setTopics(resolvedTopics)
+      let enrollment = await getEnrollment(resolvedId)
+      if (!enrollment) {
+        try {
+          enrollment = await enrollCourse(resolvedId)
+        } catch {
+          // ignore when user is not authenticated
+        }
+      }
 
-    const openState: Record<string, boolean> = {}
-    resolvedTopics.forEach((topic) => {
-      openState[topic.id] = true
-    })
-    setOpenTopics(openState)
+      const baseTopics = await getTopicsByCourse(resolvedId)
+      const resolvedTopics = await Promise.all(
+        baseTopics.map(async (topic) => ({
+          ...topic,
+          lessons: await getLessonsByTopic(topic.id),
+        }))
+      )
 
-    const resolvedLessons = resolvedTopics.flatMap((topic) => topic.lessons)
+      const openState: Record<string, boolean> = {}
+      resolvedTopics.forEach((topic) => {
+        openState[topic.id] = true
+      })
 
-    if (lessonslug) {
-      const foundLesson = getLessonBySlug(resolvedId, lessonslug)
-      if (foundLesson) {
-        setActiveLesson(foundLesson)
+      const resolvedLessons = resolvedTopics.flatMap((topic) => topic.lessons)
+      let nextActiveLesson: Lesson | null = null
+
+      if (lessonslug) {
+        const foundLesson = await getLessonBySlug(resolvedId, lessonslug)
+        nextActiveLesson = foundLesson || resolvedLessons[0] || null
       } else if (resolvedLessons.length > 0) {
-        setActiveLesson(resolvedLessons[0])
+        const completed = enrollment?.completedLessons || []
+        const firstUncompleted = resolvedLessons.find((lesson) => !completed.includes(lesson.id))
+        nextActiveLesson = firstUncompleted || resolvedLessons[0]
       }
-    } else if (resolvedLessons.length > 0) {
-      const enrollment = getEnrollment(resolvedId)
-      const completed = enrollment?.completedLessons || []
-      const firstUncompleted = resolvedLessons.find((lesson) => !completed.includes(lesson.id))
-      const targetLesson = firstUncompleted || resolvedLessons[0]
-      setActiveLesson(targetLesson)
-      if (targetLesson.slug) {
-        replaceUrl(`/courses/${courseslug}/lessons/${targetLesson.slug}`)
+
+      if (!active) return
+
+      setCourse(resolvedCourse)
+      setTopics(resolvedTopics)
+      setOpenTopics(openState)
+      setActiveLesson(nextActiveLesson)
+
+      if (!lessonslug && nextActiveLesson?.slug) {
+        replaceUrl(`/courses/${courseslug}/lessons/${nextActiveLesson.slug}`)
       }
+    }
+
+    void load()
+
+    return () => {
+      active = false
     }
   }, [courseslug, lessonslug])
 
   useEffect(() => {
     if (!courseId || !activeLesson) return
-    refreshProgress()
-    setNoteText(getNote(courseId, activeLesson.id))
+
+    const load = async () => {
+      await refreshProgress()
+      setNoteText(await getNote(courseId, activeLesson.id))
+    }
+
+    void load()
   }, [courseId, activeLesson, refreshProgress])
 
   useEffect(() => {
@@ -166,18 +195,27 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
   const completedInTopic = (topic: TopicWithLessons) =>
     topic.lessons.filter((lesson) => isComplete(lesson.id)).length
 
-  const handleToggleComplete = (lessonId: string) => {
+  const handleToggleComplete = async (lessonId: string) => {
     if (!courseId) return
-    toggleLessonComplete(courseId, lessonId)
-    refreshProgress()
+    try {
+      await toggleLessonComplete(courseId, lessonId)
+      await refreshProgress()
+    } catch {
+      toast({ title: 'Silakan login untuk update progres', variant: 'error' })
+    }
   }
 
-  const handleMarkComplete = () => {
+  const handleMarkComplete = async () => {
     if (!courseId || !activeLesson) return
 
-    if (!completedLessons.includes(activeLesson.id)) {
-      toggleLessonComplete(courseId, activeLesson.id)
-      refreshProgress()
+    try {
+      if (!completedLessons.includes(activeLesson.id)) {
+        await toggleLessonComplete(courseId, activeLesson.id)
+        await refreshProgress()
+      }
+    } catch {
+      toast({ title: 'Silakan login untuk update progres', variant: 'error' })
+      return
     }
 
     const currentIndex = allLessons.findIndex((lesson) => lesson.id === activeLesson.id)
@@ -190,9 +228,14 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
     }
   }
 
-  const handleSaveNote = () => {
+  const handleSaveNote = async () => {
     if (!courseId || !activeLesson) return
-    saveNote(courseId, activeLesson.id, noteText)
+    try {
+      await saveNote(courseId, activeLesson.id, noteText)
+      toast({ title: 'Note saved', variant: 'success' })
+    } catch {
+      toast({ title: 'Silakan login untuk menyimpan catatan', variant: 'error' })
+    }
   }
 
   const handleSelectLesson = (lesson: Lesson) => {
@@ -250,7 +293,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
                   >
                     <Checkbox
                       checked={isComplete(lesson.id)}
-                      onCheckedChange={() => handleToggleComplete(lesson.id)}
+                      onCheckedChange={() => void handleToggleComplete(lesson.id)}
                       onClick={(event) => event.stopPropagation()}
                       class='shrink-0'
                     />
@@ -305,13 +348,18 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
             {completedLessons.length} of {totalLessons} ({progress}%)
           </span>
           <Progress value={progress} class='h-2 w-16 md:w-32' />
-          <Button size='sm' onClick={handleMarkComplete} disabled={!activeLesson} class='hidden sm:flex'>
+          <Button
+            size='sm'
+            onClick={() => void handleMarkComplete()}
+            disabled={!activeLesson}
+            class='hidden sm:flex'
+          >
             <CheckCircle2 class='mr-1 h-4 w-4' /> Mark as Complete
           </Button>
           <Button
             size='icon'
             variant='outline'
-            onClick={handleMarkComplete}
+            onClick={() => void handleMarkComplete()}
             disabled={!activeLesson}
             class='h-8 w-8 shrink-0 sm:hidden'
           >
@@ -409,7 +457,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
                       onInput={(event) => setNoteText((event.target as HTMLTextAreaElement).value)}
                       class='min-h-[200px]'
                     />
-                    <Button size='sm' onClick={handleSaveNote}>
+                    <Button size='sm' onClick={() => void handleSaveNote()}>
                       Save Note
                     </Button>
                   </div>

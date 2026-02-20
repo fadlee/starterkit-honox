@@ -51,26 +51,27 @@ export function SpreadsheetImportModal({ courseId, onClose }: SpreadsheetImportM
     })
   }
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (!parseResult || parseResult.topics.length === 0) return
     setImporting(true)
 
     try {
-      const existingTopics = getTopicsByCourse(courseId)
+      const existingTopics = await getTopicsByCourse(courseId)
       let topicOrder = existingTopics.length
 
       for (const parsedTopic of parseResult.topics) {
-        const topic = createTopic({
+        const topic = await createTopic({
           courseId,
           title: parsedTopic.title,
           order: topicOrder++,
         })
 
-        parsedTopic.lessons.forEach((lesson, lessonOrder) => {
-          createLesson({
-            topicId: topic.id,
-            courseId,
-            title: lesson.title,
+        await Promise.all(
+          parsedTopic.lessons.map((lesson, lessonOrder) =>
+            createLesson({
+              topicId: topic.id,
+              courseId,
+              title: lesson.title,
             slug: generateSlug(lesson.title),
             content: '',
             featuredImage: '',
@@ -79,11 +80,12 @@ export function SpreadsheetImportModal({ courseId, onClose }: SpreadsheetImportM
             videoPlaybackMinutes: lesson.durationMinutes,
             videoPlaybackSeconds: lesson.durationSeconds,
             exerciseFiles: [],
-            isPreview: false,
-            previewType: 'free',
-            order: lessonOrder,
-          })
-        })
+              isPreview: false,
+              previewType: 'free',
+              order: lessonOrder,
+            })
+          )
+        )
       }
 
       setImported(true)
@@ -256,7 +258,7 @@ export function SpreadsheetImportModal({ courseId, onClose }: SpreadsheetImportM
             Batal
           </Button>
           <Button
-            onClick={handleImport}
+            onClick={() => void handleImport()}
             disabled={!parseResult || parseResult.topics.length === 0 || importing || imported}
             class='gap-2'
           >

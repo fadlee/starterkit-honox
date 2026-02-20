@@ -1,119 +1,73 @@
-import type { User } from '@/types/lms'
+import type { User, UserRole } from '@/types/lms'
+import { apiFetch, ApiHttpError } from '@/lib/api-client'
 
-const USERS_KEY = 'lms_users'
-const SESSION_KEY = 'lms_current_user'
-
-function storage(): Storage | null {
-  if (typeof window === 'undefined') return null
+export async function getUsers(): Promise<User[]> {
   try {
-    return window.localStorage
-  } catch {
-    return null
-  }
-}
-
-export function getUsers(): User[] {
-  const store = storage()
-  if (!store) return []
-  try {
-    const raw = store.getItem(USERS_KEY)
-    return raw ? (JSON.parse(raw) as User[]) : []
+    return await apiFetch<User[]>('/api/users')
   } catch {
     return []
   }
 }
 
-function saveUsers(users: User[]) {
-  const store = storage()
-  if (!store) return
-  try {
-    store.setItem(USERS_KEY, JSON.stringify(users))
-  } catch {
-    // ignore localStorage write failures
-  }
+export async function initDefaultAdmin(): Promise<void> {
+  // no-op: seeding now happens in the server in-memory store.
 }
 
-export function initDefaultAdmin() {
-  const users = getUsers()
-  if (!users.find((u) => u.username === 'admin')) {
-    users.push({
-      id: 'admin-001',
-      username: 'admin',
-      password: 'admin123',
-      displayName: 'Administrator',
-      role: 'admin',
-      createdAt: new Date().toISOString(),
+export async function login(username: string, password: string): Promise<User | null> {
+  try {
+    return await apiFetch<User>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
     })
-    saveUsers(users)
-  }
-}
-
-export function login(username: string, password: string): User | null {
-  initDefaultAdmin()
-  const store = storage()
-  const users = getUsers()
-  const user = users.find((u) => u.username === username && u.password === password)
-  if (user && store) {
-    try {
-      store.setItem(SESSION_KEY, JSON.stringify(user))
-    } catch {
-      // ignore localStorage write failures
+  } catch (error) {
+    if (error instanceof ApiHttpError && error.status === 401) {
+      return null
     }
-    return user
-  }
-  return user ?? null
-}
-
-export function logout() {
-  const store = storage()
-  if (!store) return
-  try {
-    store.removeItem(SESSION_KEY)
-  } catch {
-    // ignore localStorage write failures
+    throw error
   }
 }
 
-export function getCurrentUser(): User | null {
-  const store = storage()
-  if (!store) return null
+export async function logout(): Promise<void> {
+  await apiFetch<{ ok: boolean }>('/api/auth/logout', {
+    method: 'POST',
+  })
+}
+
+export async function getCurrentUser(): Promise<User | null> {
   try {
-    const raw = store.getItem(SESSION_KEY)
-    return raw ? (JSON.parse(raw) as User) : null
+    return await apiFetch<User | null>('/api/auth/session')
   } catch {
     return null
   }
 }
 
-export function createUser(data: {
+export async function createUser(data: {
   username: string
   password: string
   displayName: string
-}): User | null {
-  const users = getUsers()
-  if (users.find((u) => u.username === data.username)) return null
-  const user: User = {
-    id:
-      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-        ? crypto.randomUUID()
-        : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 11)}`,
-    username: data.username,
-    password: data.password,
-    displayName: data.displayName,
-    role: 'user',
-    createdAt: new Date().toISOString(),
+}): Promise<User | null> {
+  try {
+    return await apiFetch<User>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  } catch (error) {
+    if (error instanceof ApiHttpError && error.status === 409) {
+      return null
+    }
+    throw error
   }
-  users.push(user)
-  saveUsers(users)
-  return user
 }
 
-export function deleteUser(id: string) {
-  const users = getUsers().filter((u) => u.id !== id)
-  saveUsers(users)
+export async function deleteUser(id: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/api/users/${id}`, {
+    method: 'DELETE',
+  })
 }
 
-export function updateUserRole(id: string, role: 'admin' | 'user') {
-  const users = getUsers().map((u) => (u.id === id ? { ...u, role } : u))
-  saveUsers(users)
+export async function updateUserRole(id: string, role: UserRole): Promise<void> {
+  await apiFetch<User>(`/api/users/${id}/role`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
+  })
 }

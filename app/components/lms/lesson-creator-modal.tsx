@@ -59,14 +59,14 @@ export function LessonCreatorModal({
     reader.readAsDataURL(file)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title.trim()) {
       toast({ title: 'Please enter a lesson name', variant: 'error' })
       return
     }
 
     if (isEditing && lesson) {
-      updateLesson(lesson.id, {
+      await updateLesson(lesson.id, {
         title: form.title,
         content: form.content,
         featuredImage: form.featuredImage,
@@ -79,8 +79,8 @@ export function LessonCreatorModal({
       })
       toast({ title: 'Lesson updated', variant: 'success' })
     } else {
-      const existingLessons = getLessonsByTopic(topicId)
-      createLesson({
+      const existingLessons = await getLessonsByTopic(topicId)
+      await createLesson({
         topicId,
         courseId,
         title: form.title,
@@ -279,7 +279,7 @@ export function LessonCreatorModal({
           <Button variant='outline' onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>{isEditing ? 'Update Lesson' : 'Create Lesson'}</Button>
+          <Button onClick={() => void handleSave()}>{isEditing ? 'Update Lesson' : 'Create Lesson'}</Button>
         </div>
       </div>
     </div>

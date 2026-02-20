@@ -50,19 +50,25 @@ export interface Lesson {
 
 export interface Enrollment {
   id: string;
+  userId: string;
   courseId: string;
   enrolledAt: string;
   completedLessons: string[];
   notes: Record<string, string>;
 }
 
+export type UserRole = 'admin' | 'user';
+
 export interface User {
   id: string;
   username: string;
-  password: string;
   displayName: string;
-  role: 'admin' | 'user';
+  role: UserRole;
   createdAt: string;
+}
+
+export interface StoredUser extends User {
+  password: string;
 }
 
 export const DEFAULT_CATEGORIES = [

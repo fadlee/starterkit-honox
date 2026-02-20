@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { enrollCourse, getCourseBySlug, getCourseProgress, getEnrollment, getLessonsByTopic, getTopicsByCourse } from '@/lib/lms-storage'
+import { toast } from '@/lib/toast'
 import type { Course, Lesson, Topic } from '@/types/lms'
 import { go, replace } from '@/islands/lms/hooks/navigation'
 import { useAuth } from '@/islands/lms/hooks/use-auth'
@@ -48,25 +49,42 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
-    if (!courseslug) return
+    let active = true
 
-    const resolvedCourse = getCourseBySlug(courseslug)
-    if (!resolvedCourse) {
-      replace('/')
-      return
+    const load = async () => {
+      if (!courseslug) return
+
+      const resolvedCourse = await getCourseBySlug(courseslug)
+      if (!resolvedCourse) {
+        replace('/')
+        return
+      }
+
+      const baseTopics = await getTopicsByCourse(resolvedCourse.id)
+      const resolvedTopics = await Promise.all(
+        baseTopics.map(async (topic) => ({
+          ...topic,
+          lessons: await getLessonsByTopic(topic.id),
+        }))
+      )
+
+      const enrollment = await getEnrollment(resolvedCourse.id)
+      const nextProgress = await getCourseProgress(resolvedCourse.id)
+
+      if (!active) return
+
+      setCourse(resolvedCourse)
+      setTopics(resolvedTopics)
+      setOpenTopics(new Set(resolvedTopics.map((topic) => topic.id)))
+      setEnrolled(!!enrollment)
+      setProgress(nextProgress)
     }
 
-    setCourse(resolvedCourse)
+    void load()
 
-    const resolvedTopics = getTopicsByCourse(resolvedCourse.id).map((topic) => ({
-      ...topic,
-      lessons: getLessonsByTopic(topic.id),
-    }))
-
-    setTopics(resolvedTopics)
-    setOpenTopics(new Set(resolvedTopics.map((topic) => topic.id)))
-    setEnrolled(!!getEnrollment(resolvedCourse.id))
-    setProgress(getCourseProgress(resolvedCourse.id))
+    return () => {
+      active = false
+    }
   }, [courseslug])
 
   const totalLessons = useMemo(
@@ -89,6 +107,18 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
       else next.add(topicId)
       return next
     })
+  }
+
+  const handleEnroll = async () => {
+    if (!course) return
+    try {
+      await enrollCourse(course.id)
+      setEnrolled(true)
+      setProgress(await getCourseProgress(course.id))
+    } catch {
+      toast({ title: 'Silakan login terlebih dahulu untuk enroll', variant: 'error' })
+      go('/login')
+    }
   }
 
   return (
@@ -302,10 +332,7 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
                 ) : (
                   <Button
                     class='w-full'
-                    onClick={() => {
-                      enrollCourse(course.id)
-                      setEnrolled(true)
-                    }}
+                    onClick={() => void handleEnroll()}
                   >
                     <BookOpen class='mr-2 h-4 w-4' /> Enroll Course
                   </Button>

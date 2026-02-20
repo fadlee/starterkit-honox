@@ -14,7 +14,7 @@ export default function UserManagementPage() {
   const { user: currentUser, isAdmin, loading } = useAuth()
   const [users, setUsers] = useState<User[]>([])
 
-  const refresh = () => setUsers(getUsers())
+  const refresh = async () => setUsers(await getUsers())
 
   useEffect(() => {
     if (loading) return
@@ -26,23 +26,23 @@ export default function UserManagementPage() {
       replace('/')
       return
     }
-    refresh()
+    void refresh()
   }, [currentUser, isAdmin, loading])
 
-  const handleRoleChange = (id: string, role: 'admin' | 'user') => {
-    updateUserRole(id, role)
-    refresh()
+  const handleRoleChange = async (id: string, role: 'admin' | 'user') => {
+    await updateUserRole(id, role)
+    await refresh()
     toast({ title: 'Role berhasil diubah', variant: 'success' })
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (id === currentUser?.id) {
       toast({ title: 'Tidak bisa menghapus akun sendiri', variant: 'error' })
       return
     }
 
-    deleteUser(id)
-    refresh()
+    await deleteUser(id)
+    await refresh()
     toast({ title: 'User berhasil dihapus', variant: 'success' })
   }
 
@@ -88,7 +88,10 @@ export default function UserManagementPage() {
                     <select
                       value={user.role}
                       onChange={(event) =>
-                        handleRoleChange(user.id, (event.target as HTMLSelectElement).value as 'admin' | 'user')
+                        void handleRoleChange(
+                          user.id,
+                          (event.target as HTMLSelectElement).value as 'admin' | 'user'
+                        )
                       }
                       class='h-8 w-[120px] rounded-md border border-[hsl(var(--border))] bg-transparent px-2 text-sm'
                     >
@@ -103,7 +106,7 @@ export default function UserManagementPage() {
                     <Button
                       variant='ghost'
                       size='icon'
-                      onClick={() => handleDelete(user.id)}
+                      onClick={() => void handleDelete(user.id)}
                       disabled={user.id === currentUser?.id}
                       class='text-red-600 hover:text-red-600'
                     >

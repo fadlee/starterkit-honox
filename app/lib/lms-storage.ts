@@ -1,201 +1,165 @@
 import type { Course, Enrollment, Lesson, Topic } from '@/types/lms'
+import { apiFetch, ApiHttpError } from '@/lib/api-client'
 
-const COURSES_KEY = 'lms_courses'
-const TOPICS_KEY = 'lms_topics'
-const LESSONS_KEY = 'lms_lessons'
-const ENROLLMENTS_KEY = 'lms_enrollments'
-
-function storage(): Storage | null {
-  if (typeof window === 'undefined') return null
-  try {
-    return window.localStorage
-  } catch {
-    return null
-  }
+function encode(value: string): string {
+  return encodeURIComponent(value)
 }
 
-function generateId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 11)}`
+function isNotFound(error: unknown): boolean {
+  return error instanceof ApiHttpError && error.status === 404
 }
 
-function getItems<T>(key: string): T[] {
-  const store = storage()
-  if (!store) return []
+function isUnauthorized(error: unknown): boolean {
+  return error instanceof ApiHttpError && error.status === 401
+}
+
+export async function getCourses(): Promise<Course[]> {
   try {
-    const data = store.getItem(key)
-    return data ? (JSON.parse(data) as T[]) : []
+    return await apiFetch<Course[]>('/api/courses')
   } catch {
     return []
   }
 }
 
-function setItems<T>(key: string, items: T[]): void {
-  const store = storage()
-  if (!store) return
+export async function getCourse(id: string): Promise<Course | undefined> {
   try {
-    store.setItem(key, JSON.stringify(items))
-  } catch {
-    // ignore localStorage write failures
+    return await apiFetch<Course>(`/api/courses/${encode(id)}`)
+  } catch (error) {
+    if (isNotFound(error)) return undefined
+    throw error
   }
 }
 
-// Courses
-export function getCourses(): Course[] {
-  return getItems<Course>(COURSES_KEY)
-}
-
-export function getCourse(id: string): Course | undefined {
-  return getCourses().find((c) => c.id === id)
-}
-
-export function getCourseBySlug(slug: string): Course | undefined {
-  return getCourses().find((c) => c.slug === slug)
-}
-
-export function createCourse(data: Omit<Course, 'id' | 'createdAt' | 'updatedAt'>): Course {
-  const course: Course = {
-    ...data,
-    id: generateId(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+export async function getCourseBySlug(slug: string): Promise<Course | undefined> {
+  try {
+    return await apiFetch<Course>(`/api/courses/slug/${encode(slug)}`)
+  } catch (error) {
+    if (isNotFound(error)) return undefined
+    throw error
   }
-  const courses = getCourses()
-  courses.push(course)
-  setItems(COURSES_KEY, courses)
-  return course
 }
 
-export function updateCourse(id: string, data: Partial<Course>): Course | undefined {
-  const courses = getCourses()
-  const index = courses.findIndex((c) => c.id === id)
-  if (index === -1) return undefined
-  courses[index] = { ...courses[index], ...data, updatedAt: new Date().toISOString() }
-  setItems(COURSES_KEY, courses)
-  return courses[index]
-}
-
-export function deleteCourse(id: string): void {
-  setItems(
-    COURSES_KEY,
-    getCourses().filter((c) => c.id !== id)
-  )
-  // cascade delete topics and lessons
-  const topics = getTopicsByCourse(id)
-  topics.forEach((t) => deleteTopic(t.id))
-}
-
-// Topics
-export function getTopics(): Topic[] {
-  return getItems<Topic>(TOPICS_KEY)
-}
-
-export function getTopicsByCourse(courseId: string): Topic[] {
-  return getTopics()
-    .filter((t) => t.courseId === courseId)
-    .sort((a, b) => a.order - b.order)
-}
-
-export function createTopic(data: Omit<Topic, 'id' | 'createdAt'>): Topic {
-  const topic: Topic = {
-    ...data,
-    id: generateId(),
-    createdAt: new Date().toISOString(),
-  }
-  const topics = getTopics()
-  topics.push(topic)
-  setItems(TOPICS_KEY, topics)
-  return topic
-}
-
-export function updateTopic(id: string, data: Partial<Topic>): void {
-  const topics = getTopics()
-  const index = topics.findIndex((t) => t.id === id)
-  if (index === -1) return
-  topics[index] = { ...topics[index], ...data }
-  setItems(TOPICS_KEY, topics)
-}
-
-export function deleteTopic(id: string): void {
-  setItems(
-    TOPICS_KEY,
-    getTopics().filter((t) => t.id !== id)
-  )
-  // cascade delete lessons
-  setItems(
-    LESSONS_KEY,
-    getLessons().filter((l) => l.topicId !== id)
-  )
-}
-
-export function reorderTopics(courseId: string, orderedIds: string[]): void {
-  void courseId
-  const topics = getTopics()
-  orderedIds.forEach((id, index) => {
-    const topic = topics.find((t) => t.id === id)
-    if (topic) topic.order = index
+export async function createCourse(data: Omit<Course, 'id' | 'createdAt' | 'updatedAt'>): Promise<Course> {
+  return apiFetch<Course>('/api/courses', {
+    method: 'POST',
+    body: JSON.stringify(data),
   })
-  setItems(TOPICS_KEY, topics)
 }
 
-// Lessons
-export function getLessons(): Lesson[] {
-  return getItems<Lesson>(LESSONS_KEY)
-}
-
-export function getLessonsByTopic(topicId: string): Lesson[] {
-  return getLessons()
-    .filter((l) => l.topicId === topicId)
-    .sort((a, b) => a.order - b.order)
-}
-
-export function createLesson(data: Omit<Lesson, 'id' | 'createdAt' | 'updatedAt'>): Lesson {
-  const lesson: Lesson = {
-    ...data,
-    slug: data.slug || generateSlug(data.title),
-    id: generateId(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+export async function updateCourse(id: string, data: Partial<Course>): Promise<Course | undefined> {
+  try {
+    return await apiFetch<Course>(`/api/courses/${encode(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  } catch (error) {
+    if (isNotFound(error)) return undefined
+    throw error
   }
-  const lessons = getLessons()
-  lessons.push(lesson)
-  setItems(LESSONS_KEY, lessons)
-  return lesson
 }
 
-export function getLessonBySlug(courseId: string, lessonSlug: string): Lesson | undefined {
-  const topics = getTopicsByCourse(courseId)
-  for (const topic of topics) {
-    const lesson = getLessonsByTopic(topic.id).find((l) => l.slug === lessonSlug)
-    if (lesson) return lesson
-  }
-  return undefined
-}
-
-export function updateLesson(id: string, data: Partial<Lesson>): void {
-  const lessons = getLessons()
-  const index = lessons.findIndex((l) => l.id === id)
-  if (index === -1) return
-  lessons[index] = { ...lessons[index], ...data, updatedAt: new Date().toISOString() }
-  setItems(LESSONS_KEY, lessons)
-}
-
-export function deleteLesson(id: string): void {
-  setItems(
-    LESSONS_KEY,
-    getLessons().filter((l) => l.id !== id)
-  )
-}
-
-export function reorderLessons(topicId: string, orderedIds: string[]): void {
-  const lessons = getLessons()
-  orderedIds.forEach((id, index) => {
-    const lesson = lessons.find((l) => l.id === id)
-    if (lesson) lesson.order = index
+export async function deleteCourse(id: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/api/courses/${encode(id)}`, {
+    method: 'DELETE',
   })
-  setItems(LESSONS_KEY, lessons)
+}
+
+export async function getTopics(): Promise<Topic[]> {
+  const courses = await getCourses()
+  const groups = await Promise.all(courses.map((course) => getTopicsByCourse(course.id)))
+  return groups.flat()
+}
+
+export async function getTopicsByCourse(courseId: string): Promise<Topic[]> {
+  try {
+    return await apiFetch<Topic[]>(`/api/courses/${encode(courseId)}/topics`)
+  } catch (error) {
+    if (isNotFound(error)) return []
+    throw error
+  }
+}
+
+export async function createTopic(data: Omit<Topic, 'id' | 'createdAt'>): Promise<Topic> {
+  return apiFetch<Topic>(`/api/courses/${encode(data.courseId)}/topics`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateTopic(id: string, data: Partial<Topic>): Promise<void> {
+  await apiFetch<Topic>(`/api/topics/${encode(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteTopic(id: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/api/topics/${encode(id)}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function reorderTopics(courseId: string, orderedIds: string[]): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/api/courses/${encode(courseId)}/topics/reorder`, {
+    method: 'POST',
+    body: JSON.stringify({ orderedIds }),
+  })
+}
+
+export async function getLessons(): Promise<Lesson[]> {
+  const topics = await getTopics()
+  const groups = await Promise.all(topics.map((topic) => getLessonsByTopic(topic.id)))
+  return groups.flat()
+}
+
+export async function getLessonsByTopic(topicId: string): Promise<Lesson[]> {
+  try {
+    return await apiFetch<Lesson[]>(`/api/topics/${encode(topicId)}/lessons`)
+  } catch (error) {
+    if (isNotFound(error)) return []
+    throw error
+  }
+}
+
+export async function createLesson(data: Omit<Lesson, 'id' | 'createdAt' | 'updatedAt'>): Promise<Lesson> {
+  return apiFetch<Lesson>(`/api/topics/${encode(data.topicId)}/lessons`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getLessonBySlug(
+  courseId: string,
+  lessonSlug: string
+): Promise<Lesson | undefined> {
+  try {
+    return await apiFetch<Lesson>(
+      `/api/courses/${encode(courseId)}/lessons/slug/${encode(lessonSlug)}`
+    )
+  } catch (error) {
+    if (isNotFound(error)) return undefined
+    throw error
+  }
+}
+
+export async function updateLesson(id: string, data: Partial<Lesson>): Promise<void> {
+  await apiFetch<Lesson>(`/api/lessons/${encode(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteLesson(id: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/api/lessons/${encode(id)}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function reorderLessons(topicId: string, orderedIds: string[]): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/api/topics/${encode(topicId)}/lessons/reorder`, {
+    method: 'POST',
+    body: JSON.stringify({ orderedIds }),
+  })
 }
 
 export function generateSlug(title: string): string {
@@ -209,75 +173,88 @@ export function generateSlug(title: string): string {
     .trim()
 }
 
-// Enrollments
-export function getEnrollments(): Enrollment[] {
-  return getItems<Enrollment>(ENROLLMENTS_KEY)
-}
-
-export function getEnrollment(courseId: string): Enrollment | undefined {
-  return getEnrollments().find((e) => e.courseId === courseId)
-}
-
-export function enrollCourse(courseId: string): Enrollment {
-  const existing = getEnrollment(courseId)
-  if (existing) return existing
-  const enrollment: Enrollment = {
-    id: generateId(),
-    courseId,
-    enrolledAt: new Date().toISOString(),
-    completedLessons: [],
-    notes: {},
+export async function getEnrollments(): Promise<Enrollment[]> {
+  try {
+    const courses = await getCourses()
+    const maybe = await Promise.all(courses.map((course) => getEnrollment(course.id)))
+    return maybe.filter((item): item is Enrollment => !!item)
+  } catch {
+    return []
   }
-  const enrollments = getEnrollments()
-  enrollments.push(enrollment)
-  setItems(ENROLLMENTS_KEY, enrollments)
-  return enrollment
 }
 
-export function unenrollCourse(courseId: string): void {
-  setItems(
-    ENROLLMENTS_KEY,
-    getEnrollments().filter((e) => e.courseId !== courseId)
-  )
-}
-
-export function toggleLessonComplete(courseId: string, lessonId: string): boolean {
-  const enrollments = getEnrollments()
-  const enrollment = enrollments.find((e) => e.courseId === courseId)
-  if (!enrollment) return false
-  const idx = enrollment.completedLessons.indexOf(lessonId)
-  if (idx === -1) {
-    enrollment.completedLessons.push(lessonId)
-  } else {
-    enrollment.completedLessons.splice(idx, 1)
+export async function getEnrollment(courseId: string): Promise<Enrollment | undefined> {
+  try {
+    const enrollment = await apiFetch<Enrollment | null>(`/api/courses/${encode(courseId)}/enrollment`)
+    return enrollment ?? undefined
+  } catch (error) {
+    if (isUnauthorized(error) || isNotFound(error)) return undefined
+    throw error
   }
-  setItems(ENROLLMENTS_KEY, enrollments)
-  return idx === -1
 }
 
-export function isLessonComplete(courseId: string, lessonId: string): boolean {
-  const enrollment = getEnrollment(courseId)
+export async function enrollCourse(courseId: string): Promise<Enrollment> {
+  return apiFetch<Enrollment>(`/api/courses/${encode(courseId)}/enrollment`, {
+    method: 'POST',
+  })
+}
+
+export async function unenrollCourse(courseId: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/api/courses/${encode(courseId)}/enrollment`, {
+    method: 'DELETE',
+  })
+}
+
+export async function toggleLessonComplete(courseId: string, lessonId: string): Promise<boolean> {
+  try {
+    const response = await apiFetch<{ completed: boolean; progress: number }>(
+      `/api/courses/${encode(courseId)}/lessons/${encode(lessonId)}/toggle-complete`,
+      {
+        method: 'POST',
+      }
+    )
+    return response.completed
+  } catch (error) {
+    if (error instanceof ApiHttpError && error.status === 400) {
+      return false
+    }
+    throw error
+  }
+}
+
+export async function isLessonComplete(courseId: string, lessonId: string): Promise<boolean> {
+  const enrollment = await getEnrollment(courseId)
   return enrollment ? enrollment.completedLessons.includes(lessonId) : false
 }
 
-export function getCourseProgress(courseId: string): number {
-  const enrollment = getEnrollment(courseId)
-  if (!enrollment) return 0
-  const topics = getTopicsByCourse(courseId)
-  const totalLessons = topics.reduce((sum, topic) => sum + getLessonsByTopic(topic.id).length, 0)
-  if (totalLessons === 0) return 0
-  return Math.round((enrollment.completedLessons.length / totalLessons) * 100)
+export async function getCourseProgress(courseId: string): Promise<number> {
+  try {
+    const response = await apiFetch<{ progress: number }>(`/api/courses/${encode(courseId)}/progress`)
+    return response.progress
+  } catch (error) {
+    if (isUnauthorized(error) || isNotFound(error)) return 0
+    throw error
+  }
 }
 
-export function saveNote(courseId: string, lessonId: string, note: string): void {
-  const enrollments = getEnrollments()
-  const enrollment = enrollments.find((e) => e.courseId === courseId)
-  if (!enrollment) return
-  enrollment.notes[lessonId] = note
-  setItems(ENROLLMENTS_KEY, enrollments)
+export async function saveNote(courseId: string, lessonId: string, note: string): Promise<void> {
+  await apiFetch<{ ok: boolean; note: string }>(
+    `/api/courses/${encode(courseId)}/lessons/${encode(lessonId)}/note`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ note }),
+    }
+  )
 }
 
-export function getNote(courseId: string, lessonId: string): string {
-  const enrollment = getEnrollment(courseId)
-  return enrollment?.notes[lessonId] || ''
+export async function getNote(courseId: string, lessonId: string): Promise<string> {
+  try {
+    const response = await apiFetch<{ note: string }>(
+      `/api/courses/${encode(courseId)}/lessons/${encode(lessonId)}/note`
+    )
+    return response.note
+  } catch (error) {
+    if (isUnauthorized(error) || isNotFound(error)) return ''
+    throw error
+  }
 }

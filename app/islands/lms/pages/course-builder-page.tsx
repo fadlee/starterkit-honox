@@ -49,27 +49,38 @@ export default function CourseBuilderPage({ id }: CourseBuilderPageProps) {
   const [step, setStep] = useState(0)
   const [courseData, setCourseData] = useState<Partial<Course>>(defaultCourse)
   const [courseId, setCourseId] = useState<string | null>(isNew ? null : id || null)
-  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
-    if (loading) return
-    if (!user) {
-      replace('/login')
-      return
-    }
-    if (!isAdmin) {
-      replace('/')
-      return
+    let active = true
+
+    const load = async () => {
+      if (loading) return
+      if (!user) {
+        replace('/login')
+        return
+      }
+      if (!isAdmin) {
+        replace('/')
+        return
+      }
+
+      if (!isNew && id) {
+        const existing = await getCourse(id)
+        if (!active) return
+
+        if (existing) {
+          setCourseData(existing)
+          setCourseId(existing.id)
+        } else {
+          replace('/')
+        }
+      }
     }
 
-    if (!isNew && id) {
-      const existing = getCourse(id)
-      if (existing) {
-        setCourseData(existing)
-        setCourseId(existing.id)
-      } else {
-        replace('/')
-      }
+    void load()
+
+    return () => {
+      active = false
     }
   }, [loading, user, isAdmin, isNew, id])
 
@@ -77,7 +88,7 @@ export default function CourseBuilderPage({ id }: CourseBuilderPageProps) {
     setCourseData((prev) => ({ ...prev, ...data }))
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!courseData.title?.trim()) {
       toast({ title: 'Please enter a course title', variant: 'error' })
       setStep(0)
@@ -85,23 +96,23 @@ export default function CourseBuilderPage({ id }: CourseBuilderPageProps) {
     }
 
     if (courseId) {
-      updateCourse(courseId, courseData)
+      await updateCourse(courseId, courseData)
       toast({ title: 'Course updated successfully', variant: 'success' })
     } else {
-      const created = createCourse(courseData as Omit<Course, 'id' | 'createdAt' | 'updatedAt'>)
+      const created = await createCourse(courseData as Omit<Course, 'id' | 'createdAt' | 'updatedAt'>)
       setCourseId(created.id)
       replace(`/admin/courses/${created.id}`)
       toast({ title: 'Course created successfully', variant: 'success' })
     }
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step === 0 && !courseId && courseData.title?.trim()) {
-      const created = createCourse(courseData as Omit<Course, 'id' | 'createdAt' | 'updatedAt'>)
+      const created = await createCourse(courseData as Omit<Course, 'id' | 'createdAt' | 'updatedAt'>)
       setCourseId(created.id)
       replace(`/admin/courses/${created.id}`)
     } else if (courseId) {
-      updateCourse(courseId, courseData)
+      await updateCourse(courseId, courseData)
     }
 
     setStep((currentStep) => Math.min(currentStep + 1, 2))
@@ -137,7 +148,7 @@ export default function CourseBuilderPage({ id }: CourseBuilderPageProps) {
               >
                 <Eye class='h-3.5 w-3.5' /> Preview
               </Button>
-              <Button size='sm' class='gap-1.5' onClick={handleSave}>
+              <Button size='sm' class='gap-1.5' onClick={() => void handleSave()}>
                 <Save class='h-3.5 w-3.5' /> {courseId ? 'Update' : 'Save'}
               </Button>
             </div>
@@ -173,18 +184,12 @@ export default function CourseBuilderPage({ id }: CourseBuilderPageProps) {
       <main class='mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8'>
         {step === 0 && <CourseBasics course={courseData} onChange={handleChange} />}
 
-        {step === 1 && courseId && (
-          <CurriculumEditor
-            courseId={courseId}
-            refreshKey={refreshKey}
-            onRefresh={() => setRefreshKey((value) => value + 1)}
-          />
-        )}
+        {step === 1 && courseId && <CurriculumEditor courseId={courseId} />}
 
         {step === 1 && !courseId && (
           <div class='py-16 text-center text-[hsl(var(--muted-foreground))]'>
             <p>Please save the course first before adding curriculum.</p>
-            <Button class='mt-4' onClick={handleSave}>
+            <Button class='mt-4' onClick={() => void handleSave()}>
               Save Course
             </Button>
           </div>
@@ -203,11 +208,11 @@ export default function CourseBuilderPage({ id }: CourseBuilderPageProps) {
           </Button>
 
           {step < 2 ? (
-            <Button onClick={handleNext} class='gap-2'>
+            <Button onClick={() => void handleNext()} class='gap-2'>
               Next <ArrowRight class='h-4 w-4' />
             </Button>
           ) : (
-            <Button onClick={handleSave} class='gap-2'>
+            <Button onClick={() => void handleSave()} class='gap-2'>
               <Save class='h-4 w-4' /> {courseId ? 'Update Course' : 'Save Course'}
             </Button>
           )}

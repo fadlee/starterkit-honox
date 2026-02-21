@@ -19,6 +19,13 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  getDifficultyLabel,
+  getPreviewTypeLabel,
+  getPricingLabel,
+  getStatusLabel,
+  getVisibilityLabel,
+} from '@/lib/lms-labels'
 import { Progress } from '@/components/ui/progress'
 import { enrollCourse, getCourseBySlug, getEnrollment, getLessonsByTopic, getTopicsByCourse } from '@/lib/lms-storage'
 import { toast } from '@/lib/toast'
@@ -129,7 +136,7 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
       setEnrolled(true)
       setProgress(calculateProgress(topics, enrollment))
     } catch {
-      toast({ title: 'Gagal enroll course. Coba lagi.', variant: 'error' })
+      toast({ title: 'Gagal mendaftar kursus. Coba lagi.', variant: 'error' })
     }
   }
 
@@ -144,15 +151,15 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
             <div class='flex h-9 w-9 items-center justify-center rounded-lg bg-black'>
               <BookOpen class='h-5 w-5 text-white' />
             </div>
-            <h1 class='text-xl font-bold'>Course Detail</h1>
+            <h1 class='text-xl font-bold'>Detail Kursus</h1>
           </div>
           <div class='flex gap-2'>
             <Button variant='outline' size='sm' class='gap-2'>
-              <Share2 class='h-4 w-4' /> Share
+              <Share2 class='h-4 w-4' /> Bagikan
             </Button>
             {isAdmin && (
               <Button size='sm' class='gap-2' onClick={() => go(`/admin/courses/${course.id}`)}>
-                <Edit class='h-4 w-4' /> Edit Course
+                <Edit class='h-4 w-4' /> Edit Kursus
               </Button>
             )}
           </div>
@@ -174,14 +181,14 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
               </div>
               <div class='mb-3 flex items-center gap-2'>
                 <Badge variant='secondary' class={levelColors[course.difficultyLevel]}>
-                  {course.difficultyLevel}
+                  {getDifficultyLabel(course.difficultyLevel)}
                 </Badge>
                 <Badge variant={course.pricingModel === 'free' ? 'default' : 'outline'}>
-                  {course.pricingModel === 'free' ? 'FREE' : 'PAID'}
+                  {getPricingLabel(course.pricingModel)}
                 </Badge>
-                <Badge variant='outline'>{course.status}</Badge>
+                <Badge variant='outline'>{getStatusLabel(course.status)}</Badge>
               </div>
-              <h2 class='mb-4 text-3xl font-bold'>{course.title || 'Untitled Course'}</h2>
+              <h2 class='mb-4 text-3xl font-bold'>{course.title || 'Kursus Tanpa Judul'}</h2>
               {course.description && (
                 <div
                   class='lms-prose max-w-none text-[hsl(var(--muted-foreground))]'
@@ -192,10 +199,10 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
 
             <div>
               <h3 class='mb-4 flex items-center gap-2 text-xl font-semibold'>
-                <GraduationCap class='h-5 w-5 text-black' /> Curriculum
+                <GraduationCap class='h-5 w-5 text-black' /> Kurikulum
               </h3>
               {topics.length === 0 ? (
-                <p class='text-sm text-[hsl(var(--muted-foreground))]'>No curriculum content yet.</p>
+                <p class='text-sm text-[hsl(var(--muted-foreground))]'>Konten kurikulum belum tersedia.</p>
               ) : (
                 <div class='space-y-2'>
                   {topics.map((topic) => (
@@ -207,7 +214,7 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
                         <span>
                           {topic.title}{' '}
                           <span class='text-xs font-normal text-[hsl(var(--muted-foreground))]'>
-                            ({topic.lessons.length} lesson{topic.lessons.length !== 1 ? 's' : ''})
+                            ({topic.lessons.length} pelajaran)
                           </span>
                         </span>
                         <span class='text-xs'>{openTopics.has(topic.id) ? '−' : '+'}</span>
@@ -228,7 +235,7 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
                                     variant={lesson.previewType === 'free' ? 'default' : 'outline'}
                                     class='px-1.5 py-0 text-[10px]'
                                   >
-                                    {lesson.previewType === 'free' ? 'FREE' : 'PRO'}
+                                    {getPreviewTypeLabel(lesson.previewType)}
                                   </Badge>
                                 )}
                               </div>
@@ -247,7 +254,7 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
                             </li>
                           ))}
                           {topic.lessons.length === 0 && (
-                            <li class='py-2 text-xs text-[hsl(var(--muted-foreground))]'>No lessons yet</li>
+                            <li class='py-2 text-xs text-[hsl(var(--muted-foreground))]'>Belum ada pelajaran</li>
                           )}
                         </ul>
                       )}
@@ -258,22 +265,22 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
             </div>
 
             <div>
-              <h3 class='mb-4 text-xl font-semibold'>FAQ</h3>
+              <h3 class='mb-4 text-xl font-semibold'>Pertanyaan Umum</h3>
               <div class='space-y-2'>
                 {[
                   {
-                    q: 'How do I access the course materials?',
-                    a: 'Once enrolled, all materials are available in your dashboard.',
+                    q: 'Bagaimana cara mengakses materi kursus?',
+                    a: 'Setelah mendaftar, semua materi tersedia di dashboard Anda.',
                   },
                   {
-                    q: 'Is there a certificate upon completion?',
+                    q: 'Apakah ada sertifikat setelah selesai?',
                     a: course.certificate
-                      ? 'Yes, a certificate is awarded upon completing all lessons.'
-                      : 'No certificate is provided for this course.',
+                      ? 'Ya, sertifikat diberikan setelah menyelesaikan semua pelajaran.'
+                      : 'Tidak ada sertifikat untuk kursus ini.',
                   },
                   {
-                    q: 'Can I access the course on mobile?',
-                    a: 'Yes, the platform is fully responsive and works on all devices.',
+                    q: 'Apakah kursus bisa diakses lewat ponsel?',
+                    a: 'Ya, platform responsif dan dapat digunakan di semua perangkat.',
                   },
                 ].map((faq, index) => (
                   <details key={index} class='rounded-lg border border-[hsl(var(--border))] px-4'>
@@ -289,27 +296,31 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
             <Card>
               <CardContent class='space-y-4 p-5'>
                 <div class='border-b border-[hsl(var(--border))] pb-4 text-center'>
-                  <span class='text-2xl font-bold'>{course.pricingModel === 'free' ? 'Free' : 'Paid'}</span>
+                  <span class='text-2xl font-bold'>{getPricingLabel(course.pricingModel)}</span>
                 </div>
 
-                <InfoRow icon={<BarChart3 class='h-4 w-4' />} label='Difficulty' value={course.difficultyLevel} />
-                <InfoRow icon={<BookOpen class='h-4 w-4' />} label='Lessons' value={String(totalLessons)} />
-                <InfoRow icon={<User class='h-4 w-4' />} label='Author' value={course.author || 'N/A'} />
-                <InfoRow icon={<Eye class='h-4 w-4' />} label='Visibility' value={course.visibility} />
+                <InfoRow
+                  icon={<BarChart3 class='h-4 w-4' />}
+                  label='Tingkat'
+                  value={getDifficultyLabel(course.difficultyLevel)}
+                />
+                <InfoRow icon={<BookOpen class='h-4 w-4' />} label='Pelajaran' value={String(totalLessons)} />
+                <InfoRow icon={<User class='h-4 w-4' />} label='Pengajar' value={course.author || 'Belum diisi'} />
+                <InfoRow icon={<Eye class='h-4 w-4' />} label='Visibilitas' value={getVisibilityLabel(course.visibility)} />
                 <InfoRow
                   icon={<Users class='h-4 w-4' />}
-                  label='Max Students'
-                  value={course.maxStudents > 0 ? String(course.maxStudents) : 'Unlimited'}
+                  label='Maks. Siswa'
+                  value={course.maxStudents > 0 ? String(course.maxStudents) : 'Tidak terbatas'}
                 />
                 <InfoRow
                   icon={<Award class='h-4 w-4' />}
-                  label='Certificate'
-                  value={course.certificate ? 'Yes' : 'No'}
+                  label='Sertifikat'
+                  value={course.certificate ? 'Ya' : 'Tidak'}
                 />
 
                 {course.categories.length > 0 && (
                   <div class='border-t border-[hsl(var(--border))] pt-2'>
-                    <p class='mb-2 text-xs font-medium text-[hsl(var(--muted-foreground))]'>Categories</p>
+                    <p class='mb-2 text-xs font-medium text-[hsl(var(--muted-foreground))]'>Kategori</p>
                     <div class='flex flex-wrap gap-1'>
                       {course.categories.map((category) => (
                         <Badge key={category} variant='secondary' class='text-xs'>
@@ -322,7 +333,7 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
 
                 {course.tags.length > 0 && (
                   <div class='border-t border-[hsl(var(--border))] pt-2'>
-                    <p class='mb-2 text-xs font-medium text-[hsl(var(--muted-foreground))]'>Tags</p>
+                    <p class='mb-2 text-xs font-medium text-[hsl(var(--muted-foreground))]'>Tag</p>
                     <div class='flex flex-wrap gap-1'>
                       {course.tags.map((tag) => (
                         <Badge key={tag} variant='outline' class='text-xs'>
@@ -336,9 +347,9 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
                 {enrolled ? (
                   <>
                     <Progress value={progress} class='h-2' />
-                    <p class='text-center text-xs text-[hsl(var(--muted-foreground))]'>{progress}% complete</p>
+                    <p class='text-center text-xs text-[hsl(var(--muted-foreground))]'>{progress}% selesai</p>
                     <Button class='w-full' onClick={() => go(`/courses/${course.slug}/lessons`)}>
-                      <PlayCircle class='mr-2 h-4 w-4' /> Continue Learning
+                      <PlayCircle class='mr-2 h-4 w-4' /> Lanjut Belajar
                     </Button>
                   </>
                 ) : (
@@ -346,13 +357,13 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
                     class='w-full'
                     onClick={() => void handleEnroll()}
                   >
-                    <BookOpen class='mr-2 h-4 w-4' /> Enroll Course
+                    <BookOpen class='mr-2 h-4 w-4' /> Ikuti Kursus
                   </Button>
                 )}
 
                 {isAdmin && (
                   <Button variant='outline' class='w-full' onClick={() => go(`/admin/courses/${course.id}`)}>
-                    <Edit class='mr-2 h-4 w-4' /> Edit Course
+                    <Edit class='mr-2 h-4 w-4' /> Edit Kursus
                   </Button>
                 )}
               </CardContent>
@@ -370,7 +381,7 @@ function InfoRow({ icon, label, value }: { icon: unknown; label: string; value: 
       <span class='flex items-center gap-2 text-[hsl(var(--muted-foreground))]'>
         {icon} {label}
       </span>
-      <span class='font-medium capitalize'>{value}</span>
+      <span class='font-medium'>{value}</span>
     </div>
   )
 }

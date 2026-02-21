@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
+import { getPreviewTypeLabel } from '@/lib/lms-labels'
 import { toast } from '@/lib/toast'
 import {
   ArrowLeft,
@@ -256,7 +257,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
     if (!courseId || !activeLesson || !canUseNotes) return
     try {
       await saveNote(courseId, activeLesson.id, noteText)
-      toast({ title: 'Note saved', variant: 'success' })
+      toast({ title: 'Catatan berhasil disimpan', variant: 'success' })
     } catch {
       toast({ title: 'Silakan login untuk menyimpan catatan', variant: 'error' })
     }
@@ -275,7 +276,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
   const sidebarContent = (
     <>
       <div class='border-b border-[hsl(var(--border))] p-4'>
-        <h2 class='text-sm font-semibold'>Course Content</h2>
+        <h2 class='text-sm font-semibold'>Konten Kursus</h2>
       </div>
 
       <div class='divide-y divide-[hsl(var(--border))]'>
@@ -327,7 +328,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
                     <span class='flex-1 truncate text-left'>{lesson.title}</span>
                     {lesson.isPreview && (
                       <Badge variant={lesson.previewType === 'free' ? 'default' : 'outline'} class='text-[10px]'>
-                        {lesson.previewType.toUpperCase()}
+                        {getPreviewTypeLabel(lesson.previewType)}
                       </Badge>
                     )}
                   </button>
@@ -373,7 +374,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
           {canTrackCompletion && (
             <>
               <span class='hidden text-xs text-[hsl(var(--muted-foreground))] sm:inline'>
-                {completedLessons.length} of {totalLessons} ({progress}%)
+                {completedLessons.length} dari {totalLessons} ({progress}%)
               </span>
               <Progress value={progress} class='h-2 w-16 md:w-32' />
             </>
@@ -386,7 +387,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
                 disabled={!activeLesson}
                 class='hidden sm:flex'
               >
-                <CheckCircle2 class='mr-1 h-4 w-4' /> Mark as Complete
+                <CheckCircle2 class='mr-1 h-4 w-4' /> Tandai Selesai
               </Button>
               <Button
                 size='icon'
@@ -458,7 +459,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
                     }`}
                     onClick={() => setActiveTab('overview')}
                   >
-                    <BookOpen class='h-4 w-4' /> Overview
+                    <BookOpen class='h-4 w-4' /> Ringkasan
                   </button>
                   {canUseNotes && (
                     <button
@@ -467,7 +468,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
                       }`}
                       onClick={() => setActiveTab('notes')}
                     >
-                      <StickyNote class='h-4 w-4' /> Notes
+                      <StickyNote class='h-4 w-4' /> Catatan
                     </button>
                   )}
                 </div>
@@ -475,13 +476,13 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
                 {activeTab === 'notes' && canUseNotes ? (
                   <div class='mt-4 space-y-3'>
                     <Textarea
-                      placeholder='Write your notes here...'
+                      placeholder='Tulis catatanmu di sini...'
                       value={noteText}
                       onInput={(event) => setNoteText((event.target as HTMLTextAreaElement).value)}
                       class='min-h-[200px]'
                     />
                     <Button size='sm' onClick={() => void handleSaveNote()}>
-                      Save Note
+                      Simpan Catatan
                     </Button>
                   </div>
                 ) : (
@@ -493,7 +494,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
                       />
                     ) : (
                       <p class='text-sm text-[hsl(var(--muted-foreground))]'>
-                        No content available for this lesson.
+                        Konten untuk pelajaran ini belum tersedia.
                       </p>
                     )}
                   </div>
@@ -502,7 +503,7 @@ export default function CoursePlayerPage({ courseslug, lessonslug }: CoursePlaye
             </div>
           ) : (
             <div class='flex h-full items-center justify-center text-[hsl(var(--muted-foreground))]'>
-              <p>Select a lesson to start learning</p>
+              <p>Pilih pelajaran untuk mulai belajar</p>
             </div>
           )}
         </main>

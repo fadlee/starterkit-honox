@@ -33,13 +33,13 @@ export default function LoginPage() {
       toast({ title: `Selamat datang, ${nextUser.displayName}!`, variant: 'success' })
       go('/')
     } else {
-      toast({ title: 'Username atau password salah', variant: 'error' })
+      toast({ title: 'Nama pengguna atau kata sandi salah', variant: 'error' })
     }
   }
 
   const handleRegister = async () => {
     if (!registerForm.username || !registerForm.password || !registerForm.displayName) {
-      toast({ title: 'Semua field harus diisi', variant: 'error' })
+      toast({ title: 'Semua kolom wajib diisi', variant: 'error' })
       return
     }
 
@@ -50,7 +50,7 @@ export default function LoginPage() {
       toast({ title: `Akun berhasil dibuat! Selamat datang, ${nextUser.displayName}`, variant: 'success' })
       go('/')
     } else {
-      toast({ title: 'Username sudah digunakan', variant: 'error' })
+      toast({ title: 'Nama pengguna sudah digunakan', variant: 'error' })
     }
   }
 
@@ -69,13 +69,13 @@ export default function LoginPage() {
           <CardContent class='space-y-4 p-6'>
             <div class='grid w-full grid-cols-2 gap-2'>
               <Button variant={tab === 'login' ? 'default' : 'secondary'} onClick={() => setTab('login')}>
-                Login
+                Masuk
               </Button>
               <Button
                 variant={tab === 'register' ? 'default' : 'secondary'}
                 onClick={() => setTab('register')}
               >
-                Register
+                Daftar
               </Button>
             </div>
 
@@ -88,10 +88,10 @@ export default function LoginPage() {
                 class='space-y-4'
               >
                 <div class='space-y-2'>
-                  <Label htmlFor='login-username'>Username</Label>
+                  <Label htmlFor='login-username'>Nama Pengguna</Label>
                   <Input
                     id='login-username'
-                    placeholder='Masukkan username'
+                    placeholder='Masukkan nama pengguna'
                     value={loginForm.username}
                     onInput={(event) =>
                       setLoginForm((prev) => ({
@@ -102,7 +102,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <div class='space-y-2'>
-                  <Label htmlFor='login-password'>Password</Label>
+                  <Label htmlFor='login-password'>Kata Sandi</Label>
                   <Input
                     id='login-password'
                     type='password'
@@ -117,10 +117,10 @@ export default function LoginPage() {
                   />
                 </div>
                 <Button type='button' onClick={() => void handleLogin()} class='w-full gap-2'>
-                  <LogIn class='h-4 w-4' /> Login
+                  <LogIn class='h-4 w-4' /> Masuk
                 </Button>
                 <p class='text-center text-xs text-[hsl(var(--muted-foreground))]'>
-                  Admin default: <code class='rounded bg-[hsl(var(--muted))] px-1'>admin</code> /{' '}
+                  Admin bawaan: <code class='rounded bg-[hsl(var(--muted))] px-1'>admin</code> /{' '}
                   <code class='rounded bg-[hsl(var(--muted))] px-1'>admin123</code>
                 </p>
               </form>
@@ -147,10 +147,10 @@ export default function LoginPage() {
                   />
                 </div>
                 <div class='space-y-2'>
-                  <Label htmlFor='reg-username'>Username</Label>
+                  <Label htmlFor='reg-username'>Nama Pengguna</Label>
                   <Input
                     id='reg-username'
-                    placeholder='Pilih username'
+                    placeholder='Pilih nama pengguna'
                     value={registerForm.username}
                     onInput={(event) =>
                       setRegisterForm((prev) => ({
@@ -161,7 +161,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <div class='space-y-2'>
-                  <Label htmlFor='reg-password'>Password</Label>
+                  <Label htmlFor='reg-password'>Kata Sandi</Label>
                   <Input
                     id='reg-password'
                     type='password'

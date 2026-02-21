@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Edit, Eye, ImageIcon, MoreVertical, Trash2 } from '@/components/lms/icons'
+import { getDifficultyLabel, getPricingLabel, getStatusLabel } from '@/lib/lms-labels'
 import { go } from '@/islands/lms/hooks/navigation'
 
 interface CourseCardProps {
@@ -40,10 +41,10 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
         )}
         <div class='absolute left-2 top-2 flex gap-1.5'>
           <Badge variant='secondary' class={levelColors[course.difficultyLevel]}>
-            {course.difficultyLevel}
+            {getDifficultyLabel(course.difficultyLevel)}
           </Badge>
           <Badge variant={course.pricingModel === 'free' ? 'default' : 'outline'} class='text-xs'>
-            {course.pricingModel === 'free' ? 'FREE' : 'PAID'}
+            {getPricingLabel(course.pricingModel)}
           </Badge>
         </div>
 
@@ -66,7 +67,7 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
                   go(`/courses/${course.slug}`)
                 }}
               >
-                <Eye class='mr-2 h-4 w-4' /> View
+                <Eye class='mr-2 h-4 w-4' /> Lihat
               </DropdownMenuItem>
               {onEdit && (
                 <DropdownMenuItem
@@ -75,7 +76,7 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
                     onEdit(course.id)
                   }}
                 >
-                  <Edit class='mr-2 h-4 w-4' /> Edit
+                  <Edit class='mr-2 h-4 w-4' /> Ubah
                 </DropdownMenuItem>
               )}
               {onDelete && (
@@ -86,7 +87,7 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
                     onDelete(course.id)
                   }}
                 >
-                  <Trash2 class='mr-2 h-4 w-4' /> Delete
+                  <Trash2 class='mr-2 h-4 w-4' /> Hapus
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -96,10 +97,10 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
 
       <CardContent class='p-4'>
         <h3 class='mb-1 line-clamp-2 text-sm font-semibold transition-colors hover:text-[hsl(var(--primary))]'>
-          {course.title || 'Untitled Course'}
+          {course.title || 'Kursus Tanpa Judul'}
         </h3>
         <p class='text-xs text-[hsl(var(--muted-foreground))]'>
-          {course.author || 'No author'} · {course.status}
+          {course.author || 'Tanpa pengajar'} · {getStatusLabel(course.status)}
         </p>
       </CardContent>
     </Card>

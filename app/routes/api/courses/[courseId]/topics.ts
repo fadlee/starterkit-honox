@@ -51,7 +51,8 @@ export const POST = createRoute(async (c) => {
 
     const body = (await readJsonBody<Record<string, unknown>>(c)) ?? {}
     const currentTopics = await listTopicsByCourse(c.env.LMS_DB, courseId)
-    const input = parseTopicCreateInput(body, currentTopics.length, courseId)
+    const nextOrder = currentTopics.reduce((maxOrder, topic) => Math.max(maxOrder, topic.order), -1) + 1
+    const input = parseTopicCreateInput(body, nextOrder, courseId)
 
     const topic = await createTopic(c.env.LMS_DB, input)
     return c.json(topic, 201)

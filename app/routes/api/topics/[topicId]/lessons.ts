@@ -50,10 +50,12 @@ export const POST = createRoute(async (c) => {
     }
 
     const body = (await readJsonBody<Record<string, unknown>>(c)) ?? {}
+    const existingLessons = await listLessonsByTopic(c.env.LMS_DB, topicId)
+    const nextOrder = existingLessons.reduce((maxOrder, lesson) => Math.max(maxOrder, lesson.order), -1) + 1
     const input = parseLessonCreateInput(body, {
       topicId,
       courseId: topic.courseId,
-      order: (await listLessonsByTopic(c.env.LMS_DB, topicId)).length,
+      order: nextOrder,
     })
 
     const created = await createLesson(c.env.LMS_DB, input)

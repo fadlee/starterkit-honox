@@ -37,6 +37,63 @@ function normalizeUsername(username: string) {
   return username.trim().toLowerCase()
 }
 
+const SORT_ORDER_INSERT_RETRY_LIMIT = 5
+
+function collectErrorMessages(error: unknown): string[] {
+  const messages: string[] = []
+  let current: unknown = error
+  const seen = new Set<unknown>()
+
+  while (current && typeof current === 'object' && !seen.has(current)) {
+    seen.add(current)
+    const maybeError = current as { message?: unknown; cause?: unknown }
+    if (typeof maybeError.message === 'string') {
+      messages.push(maybeError.message)
+    }
+    current = maybeError.cause
+  }
+
+  if (messages.length === 0 && typeof error === 'string') {
+    messages.push(error)
+  }
+
+  return messages
+}
+
+function isTopicSortOrderConflict(error: unknown): boolean {
+  return collectErrorMessages(error).some((message) =>
+    message.includes('UNIQUE constraint failed: topics.course_id, topics.sort_order')
+  )
+}
+
+function isLessonSortOrderConflict(error: unknown): boolean {
+  return collectErrorMessages(error).some((message) =>
+    message.includes('UNIQUE constraint failed: lessons.topic_id, lessons.sort_order')
+  )
+}
+
+async function getNextTopicSortOrder(
+  db: ReturnType<typeof getDb>,
+  courseId: string
+): Promise<number> {
+  const rows = await db
+    .select({ sortOrder: topics.sortOrder })
+    .from(topics)
+    .where(eq(topics.courseId, courseId))
+  return rows.reduce((maxOrder, row) => Math.max(maxOrder, row.sortOrder), -1) + 1
+}
+
+async function getNextLessonSortOrder(
+  db: ReturnType<typeof getDb>,
+  topicId: string
+): Promise<number> {
+  const rows = await db
+    .select({ sortOrder: lessons.sortOrder })
+    .from(lessons)
+    .where(eq(lessons.topicId, topicId))
+  return rows.reduce((maxOrder, row) => Math.max(maxOrder, row.sortOrder), -1) + 1
+}
+
 export async function cleanupExpiredSessions(database: D1Database, nowMs = Date.now()): Promise<void> {
   const db = getDb(database)
   await db.delete(sessions).where(sql`${sessions.expiresAtMs} <= ${nowMs}`)
@@ -295,13 +352,28 @@ export async function insertTopic(
 ): Promise<Topic> {
   const db = getDb(database)
   const id = data.id ?? generateId()
-  await db.insert(topics).values({
-    id,
-    courseId: data.courseId,
-    title: data.title,
-    sortOrder: data.order,
-    createdAt: data.createdAt ?? nowIso(),
-  })
+  let order = data.order
+
+  for (let attempt = 0; attempt < SORT_ORDER_INSERT_RETRY_LIMIT; attempt += 1) {
+    try {
+      await db.insert(topics).values({
+        id,
+        courseId: data.courseId,
+        title: data.title,
+        sortOrder: order,
+        createdAt: data.createdAt ?? nowIso(),
+      })
+      break
+    } catch (error) {
+      const shouldRetry =
+        isTopicSortOrderConflict(error) && attempt < SORT_ORDER_INSERT_RETRY_LIMIT - 1
+      if (!shouldRetry) {
+        throw error
+      }
+      order = await getNextTopicSortOrder(db, data.courseId)
+    }
+  }
+
   const [row] = await db.select().from(topics).where(eq(topics.id, id)).limit(1)
   if (!row) throw new Error('failed to create topic')
   return toTopic(row)
@@ -402,25 +474,39 @@ export async function insertLesson(
   const db = getDb(database)
   const id = data.id ?? generateId()
   const timestamp = nowIso()
-  await db.insert(lessons).values({
-    id,
-    topicId: data.topicId,
-    courseId: data.courseId,
-    title: data.title,
-    slug: data.slug,
-    content: data.content,
-    featuredImage: data.featuredImage,
-    videoUrl: data.videoUrl,
-    videoPlaybackHours: data.videoPlaybackHours,
-    videoPlaybackMinutes: data.videoPlaybackMinutes,
-    videoPlaybackSeconds: data.videoPlaybackSeconds,
-    exerciseFilesJson: toJsonStringArray(data.exerciseFiles),
-    isPreview: data.isPreview,
-    previewType: data.previewType,
-    sortOrder: data.order,
-    createdAt: data.createdAt ?? timestamp,
-    updatedAt: data.updatedAt ?? timestamp,
-  })
+  let order = data.order
+
+  for (let attempt = 0; attempt < SORT_ORDER_INSERT_RETRY_LIMIT; attempt += 1) {
+    try {
+      await db.insert(lessons).values({
+        id,
+        topicId: data.topicId,
+        courseId: data.courseId,
+        title: data.title,
+        slug: data.slug,
+        content: data.content,
+        featuredImage: data.featuredImage,
+        videoUrl: data.videoUrl,
+        videoPlaybackHours: data.videoPlaybackHours,
+        videoPlaybackMinutes: data.videoPlaybackMinutes,
+        videoPlaybackSeconds: data.videoPlaybackSeconds,
+        exerciseFilesJson: toJsonStringArray(data.exerciseFiles),
+        isPreview: data.isPreview,
+        previewType: data.previewType,
+        sortOrder: order,
+        createdAt: data.createdAt ?? timestamp,
+        updatedAt: data.updatedAt ?? timestamp,
+      })
+      break
+    } catch (error) {
+      const shouldRetry =
+        isLessonSortOrderConflict(error) && attempt < SORT_ORDER_INSERT_RETRY_LIMIT - 1
+      if (!shouldRetry) {
+        throw error
+      }
+      order = await getNextLessonSortOrder(db, data.topicId)
+    }
+  }
 
   const [row] = await db.select().from(lessons).where(eq(lessons.id, id)).limit(1)
   if (!row) throw new Error('failed to create lesson')

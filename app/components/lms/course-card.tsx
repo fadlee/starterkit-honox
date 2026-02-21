@@ -1,5 +1,15 @@
 import type { Course } from '@/types/lms'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -26,10 +36,22 @@ const levelColors: Record<Course['difficultyLevel'], string> = {
 }
 
 export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
+  const deleteDialogId = `delete-course-${course.id}`
+
   return (
     <Card
       class='group cursor-pointer overflow-hidden transition-shadow hover:shadow-md'
-      onClick={() => go(`/courses/${course.slug}`)}
+      onClick={(event) => {
+        const target = event.target as HTMLElement | null
+        if (
+          target?.closest(
+            '[data-ui-dropdown-root], [data-ui-alert-dialog-wrapper], [data-ui-alert-dialog-trigger], [data-ui-alert-dialog-action]'
+          )
+        ) {
+          return
+        }
+        go(`/courses/${course.slug}`)
+      }}
     >
       <div class='relative aspect-video overflow-hidden bg-[hsl(var(--muted))]'>
         {course.featuredImage ? (
@@ -48,50 +70,73 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
           </Badge>
         </div>
 
-        {(onEdit || onDelete) && (
-          <DropdownMenu id={`course-card-${course.id}`}>
-            <DropdownMenuTrigger dropdownId={`course-card-${course.id}`}>
-              <Button
-                variant='secondary'
-                size='icon'
-                class='absolute right-2 top-2 h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100'
-                onClick={(event) => event.stopPropagation()}
-              >
-                <MoreVertical class='h-3.5 w-3.5' />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent dropdownId={`course-card-${course.id}`} align='end'>
+        <DropdownMenu id={`course-card-${course.id}`}>
+          <DropdownMenuTrigger
+            dropdownId={`course-card-${course.id}`}
+            class='absolute right-2 top-2 z-10 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100'
+          >
+            <Button
+              variant='secondary'
+              size='icon'
+              class='h-7 w-7'
+            >
+              <MoreVertical class='h-3.5 w-3.5' />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent dropdownId={`course-card-${course.id}`} align='end'>
+            <DropdownMenuItem
+              onClick={(event) => {
+                event.stopPropagation()
+                go(`/courses/${course.slug}`)
+              }}
+            >
+              <Eye class='mr-2 h-4 w-4' /> Lihat
+            </DropdownMenuItem>
+            {onEdit && (
               <DropdownMenuItem
                 onClick={(event) => {
                   event.stopPropagation()
-                  go(`/courses/${course.slug}`)
+                  onEdit(course.id)
                 }}
               >
-                <Eye class='mr-2 h-4 w-4' /> Lihat
+                <Edit class='mr-2 h-4 w-4' /> Ubah
               </DropdownMenuItem>
-              {onEdit && (
-                <DropdownMenuItem
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onEdit(course.id)
-                  }}
+            )}
+            {onDelete && (
+              <>
+                <AlertDialog id={deleteDialogId} />
+                <AlertDialogTrigger dialogId={deleteDialogId} class='contents'>
+                  <DropdownMenuItem class='text-red-600'>
+                    <Trash2 class='mr-2 h-4 w-4' /> Hapus
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {onDelete && (
+          <AlertDialogContent dialogId={deleteDialogId} size='sm'>
+            <AlertDialogHeader>
+              <AlertDialogTitle dialogId={deleteDialogId}>Hapus Kursus?</AlertDialogTitle>
+              <AlertDialogDescription dialogId={deleteDialogId}>
+                Tindakan ini tidak dapat dibatalkan. Kursus dan data terkait akan dihapus permanen.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction dialogId={deleteDialogId}>
+                <Button variant='secondary'>Batal</Button>
+              </AlertDialogAction>
+              <AlertDialogAction dialogId={deleteDialogId}>
+                <Button
+                  variant='destructive'
+                  onClick={() => onDelete(course.id)}
                 >
-                  <Edit class='mr-2 h-4 w-4' /> Ubah
-                </DropdownMenuItem>
-              )}
-              {onDelete && (
-                <DropdownMenuItem
-                  class='text-red-600'
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onDelete(course.id)
-                  }}
-                >
-                  <Trash2 class='mr-2 h-4 w-4' /> Hapus
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  Hapus
+                </Button>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
         )}
       </div>
 

@@ -1,5 +1,5 @@
 const HASH_PREFIX = 'pbkdf2_sha256'
-const ITERATIONS = 210_000
+const ITERATIONS = 100_000
 const HASH_BITS = 256
 const SALT_BYTES = 16
 
@@ -41,6 +41,24 @@ async function derivePbkdf2(password: string, salt: Uint8Array, iterations: numb
   return new Uint8Array(bits)
 }
 
+async function derivePbkdf2Node(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
+  const { pbkdf2Sync } = await import('node:crypto')
+  const derived = pbkdf2Sync(password, Buffer.from(salt), iterations, HASH_BITS / 8, 'sha256')
+  return new Uint8Array(derived)
+}
+
+async function derivePbkdf2WithFallback(
+  password: string,
+  salt: Uint8Array,
+  iterations: number
+): Promise<Uint8Array> {
+  try {
+    return await derivePbkdf2(password, salt, iterations)
+  } catch {
+    return derivePbkdf2Node(password, salt, iterations)
+  }
+}
+
 function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false
   let diff = 0
@@ -52,7 +70,7 @@ function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES))
-  const hash = await derivePbkdf2(password, salt, ITERATIONS)
+  const hash = await derivePbkdf2WithFallback(password, salt, ITERATIONS)
   return `${HASH_PREFIX}$${ITERATIONS}$${toBase64(salt)}$${toBase64(hash)}`
 }
 
@@ -73,6 +91,10 @@ export async function verifyPassword(password: string, storedHash: string): Prom
     return false
   }
 
-  const derived = await derivePbkdf2(password, salt, iterations)
-  return constantTimeEqual(derived, expectedHash)
+  try {
+    const derived = await derivePbkdf2WithFallback(password, salt, iterations)
+    return constantTimeEqual(derived, expectedHash)
+  } catch {
+    return false
+  }
 }

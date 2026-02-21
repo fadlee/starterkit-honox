@@ -47,7 +47,6 @@ export const courses = sqliteTable('courses', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   slug: text('slug').notNull().unique(),
-  coba: text('coba').notNull().default(''),
   description: text('description').notNull().default(''),
   difficultyLevel: text('difficulty_level', {
     enum: ['beginner', 'intermediate', 'advanced'],

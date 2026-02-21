@@ -14,7 +14,7 @@ INSERT OR IGNORE INTO users (
   'admin',
   'admin',
   'Administrator',
-  'pbkdf2_sha256$210000$Lfrn5UnP2WUA4aU6rwnqXA==$KjT9cqv2ttlkuZ89Iot+gFCBZTUyTYmJpFXU4DHnH5M=',
+  'pbkdf2_sha256$100000$Lfrn5UnP2WUA4aU6rwnqXA==$BbjpVfFY4tg2Ph4iO1GqpxC7w6cUmxYRW9/tbr3muwc=',
   'admin',
   '2026-01-01T00:00:00.000Z',
   '2026-01-01T00:00:00.000Z'

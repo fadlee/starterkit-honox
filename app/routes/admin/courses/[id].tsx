@@ -7,5 +7,11 @@ export default createRoute((c) => {
   if (!id) {
     return c.notFound()
   }
-  return c.render(<CourseBuilderPage id={id} />)
+  return c.render(<CourseBuilderPage id={id} />, {
+    title: 'Admin Edit Kursus',
+    description: 'Edit kursus di panel admin LMS Course Builder.',
+    canonicalPath: `/admin/courses/${id}`,
+    noindex: true,
+    ogType: 'website',
+  })
 })

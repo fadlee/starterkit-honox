@@ -14,6 +14,11 @@ const app = createApp({
   ),
 })
 
+app.use('/api/*', async (c, next) => {
+  c.header('X-Robots-Tag', 'noindex, nofollow')
+  await next()
+})
+
 showRoutes(app)
 
 export default app

@@ -1,7 +1,7 @@
 import { useState } from 'hono/jsx'
 
 import type { Course } from '@/types/lms'
-import { DEFAULT_CATEGORIES, DIFFICULTY_LEVELS } from '@/types/lms'
+import { DEFAULT_CATEGORIES } from '@/types/lms'
 import { generateSlug } from '@/lib/lms-storage'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -110,24 +110,24 @@ export function CourseBasics({ course, onChange }: CourseBasicsProps) {
         </div>
 
         <div class='rounded-lg border border-[hsl(var(--border))] p-4'>
-          <h4 class='mb-3 text-sm font-semibold'>General</h4>
+          <h4 class='mb-3 text-sm font-semibold'>Publishing</h4>
 
           <div class='space-y-2'>
-            <Label htmlFor='difficulty'>Difficulty Level</Label>
+            <Label htmlFor='course-status'>Course Status</Label>
             <select
-              id='difficulty'
+              id='course-status'
               class='flex h-10 w-full rounded-[var(--radius)] border border-[hsl(var(--border))] bg-transparent px-3 py-2 text-sm'
-              value={course.difficultyLevel || 'beginner'}
+              value={course.status || 'draft'}
               onChange={(event) =>
-                onChange({ difficultyLevel: (event.target as HTMLSelectElement).value as Course['difficultyLevel'] })
+                onChange({ status: (event.target as HTMLSelectElement).value as Course['status'] })
               }
             >
-              {DIFFICULTY_LEVELS.map((level) => (
-                <option key={level.value} value={level.value}>
-                  {level.label}
-                </option>
-              ))}
+              <option value='draft'>Draft</option>
+              <option value='published'>Published</option>
             </select>
+            <p class='text-xs text-[hsl(var(--muted-foreground))]'>
+              Set to <strong>Published</strong> to make this course visible on the dashboard.
+            </p>
           </div>
 
           <div class='mt-4 flex items-center justify-between'>
@@ -195,11 +195,10 @@ export function CourseBasics({ course, onChange }: CourseBasicsProps) {
               <div class='flex gap-1 rounded-md bg-[hsl(var(--muted))] p-0.5'>
                 <button
                   type='button'
-                  class={`flex-1 rounded-sm py-1.5 text-xs transition-colors ${
-                    imageMode === 'upload'
+                  class={`flex-1 rounded-sm py-1.5 text-xs transition-colors ${imageMode === 'upload'
                       ? 'bg-white text-[hsl(var(--foreground))] shadow-sm'
                       : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
-                  }`}
+                    }`}
                   onClick={() => setImageMode('upload')}
                 >
                   <span class='inline-flex items-center gap-1.5'>
@@ -208,11 +207,10 @@ export function CourseBasics({ course, onChange }: CourseBasicsProps) {
                 </button>
                 <button
                   type='button'
-                  class={`flex-1 rounded-sm py-1.5 text-xs transition-colors ${
-                    imageMode === 'url'
+                  class={`flex-1 rounded-sm py-1.5 text-xs transition-colors ${imageMode === 'url'
                       ? 'bg-white text-[hsl(var(--foreground))] shadow-sm'
                       : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
-                  }`}
+                    }`}
                   onClick={() => setImageMode('url')}
                 >
                   <span class='inline-flex items-center gap-1.5'>
@@ -249,32 +247,6 @@ export function CourseBasics({ course, onChange }: CourseBasicsProps) {
               )}
             </>
           )}
-        </div>
-
-        <div class='space-y-3 rounded-lg border border-[hsl(var(--border))] p-4'>
-          <Label>Pricing Model</Label>
-          <div class='space-y-2'>
-            <label class='flex items-center gap-2 text-sm'>
-              <input
-                type='radio'
-                name='pricing-model'
-                value='free'
-                checked={(course.pricingModel || 'free') === 'free'}
-                onChange={() => onChange({ pricingModel: 'free' })}
-              />
-              Free
-            </label>
-            <label class='flex items-center gap-2 text-sm'>
-              <input
-                type='radio'
-                name='pricing-model'
-                value='paid'
-                checked={(course.pricingModel || 'free') === 'paid'}
-                onChange={() => onChange({ pricingModel: 'paid' })}
-              />
-              Paid
-            </label>
-          </div>
         </div>
 
         <div class='space-y-3 rounded-lg border border-[hsl(var(--border))] p-4'>
@@ -336,17 +308,6 @@ export function CourseBasics({ course, onChange }: CourseBasicsProps) {
               Add
             </Button>
           </div>
-        </div>
-
-        <div class='space-y-3 rounded-lg border border-[hsl(var(--border))] p-4'>
-          <Label htmlFor='author'>Author</Label>
-          <Input
-            id='author'
-            value={course.author || ''}
-            onInput={(event) => onChange({ author: (event.target as HTMLInputElement).value })}
-            placeholder='Author name'
-            class='h-8 text-sm'
-          />
         </div>
       </div>
     </div>

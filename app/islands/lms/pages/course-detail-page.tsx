@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'hono/jsx'
 
 import {
   ArrowLeft,
-  Award,
-  BarChart3,
   BookOpen,
   Clock,
   Edit,
@@ -12,17 +10,13 @@ import {
   ImageIcon,
   PlayCircle,
   Share2,
-  User,
-  Users,
   Video,
 } from '@/components/lms/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
-  getDifficultyLabel,
   getPreviewTypeLabel,
-  getPricingLabel,
   getStatusLabel,
   getVisibilityLabel,
 } from '@/lib/lms-labels'
@@ -114,12 +108,6 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
 
   if (!course) return null
 
-  const levelColors: Record<Course['difficultyLevel'], string> = {
-    beginner: 'border-emerald-200 bg-emerald-100 text-emerald-700',
-    intermediate: 'border-amber-200 bg-amber-100 text-amber-700',
-    advanced: 'border-rose-200 bg-rose-100 text-rose-700',
-  }
-
   const toggleTopic = (topicId: string) => {
     setOpenTopics((prev) => {
       const next = new Set(prev)
@@ -180,12 +168,6 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
                 )}
               </div>
               <div class='mb-3 flex items-center gap-2'>
-                <Badge variant='secondary' class={levelColors[course.difficultyLevel]}>
-                  {getDifficultyLabel(course.difficultyLevel)}
-                </Badge>
-                <Badge variant={course.pricingModel === 'free' ? 'default' : 'outline'}>
-                  {getPricingLabel(course.pricingModel)}
-                </Badge>
                 <Badge variant='outline'>{getStatusLabel(course.status)}</Badge>
               </div>
               <h2 class='mb-4 text-3xl font-bold'>{course.title || 'Kursus Tanpa Judul'}</h2>
@@ -225,7 +207,8 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
                           {topic.lessons.map((lesson) => (
                             <li
                               key={lesson.id}
-                              class='flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-[hsl(var(--muted))]/50'
+                              class='flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-[hsl(var(--muted))]/50 cursor-pointer transition-colors'
+                              onClick={() => go(`/courses/${course.slug}/lessons/${lesson.slug}`)}
                             >
                               <div class='flex items-center gap-2'>
                                 <Video class='h-4 w-4 text-black' />
@@ -242,15 +225,15 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
                               {(lesson.videoPlaybackHours > 0 ||
                                 lesson.videoPlaybackMinutes > 0 ||
                                 lesson.videoPlaybackSeconds > 0) && (
-                                <span class='flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]'>
-                                  <Clock class='h-3 w-3' />
-                                  {formatDuration(
-                                    lesson.videoPlaybackHours,
-                                    lesson.videoPlaybackMinutes,
-                                    lesson.videoPlaybackSeconds
-                                  )}
-                                </span>
-                              )}
+                                  <span class='flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]'>
+                                    <Clock class='h-3 w-3' />
+                                    {formatDuration(
+                                      lesson.videoPlaybackHours,
+                                      lesson.videoPlaybackMinutes,
+                                      lesson.videoPlaybackSeconds
+                                    )}
+                                  </span>
+                                )}
                             </li>
                           ))}
                           {topic.lessons.length === 0 && (
@@ -273,12 +256,6 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
                     a: 'Setelah mendaftar, semua materi tersedia di dashboard Anda.',
                   },
                   {
-                    q: 'Apakah ada sertifikat setelah selesai?',
-                    a: course.certificate
-                      ? 'Ya, sertifikat diberikan setelah menyelesaikan semua pelajaran.'
-                      : 'Tidak ada sertifikat untuk kursus ini.',
-                  },
-                  {
                     q: 'Apakah kursus bisa diakses lewat ponsel?',
                     a: 'Ya, platform responsif dan dapat digunakan di semua perangkat.',
                   },
@@ -295,28 +272,8 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
           <div class='space-y-4'>
             <Card>
               <CardContent class='space-y-4 p-5'>
-                <div class='border-b border-[hsl(var(--border))] pb-4 text-center'>
-                  <span class='text-2xl font-bold'>{getPricingLabel(course.pricingModel)}</span>
-                </div>
-
-                <InfoRow
-                  icon={<BarChart3 class='h-4 w-4' />}
-                  label='Tingkat'
-                  value={getDifficultyLabel(course.difficultyLevel)}
-                />
                 <InfoRow icon={<BookOpen class='h-4 w-4' />} label='Pelajaran' value={String(totalLessons)} />
-                <InfoRow icon={<User class='h-4 w-4' />} label='Pengajar' value={course.author || 'Belum diisi'} />
                 <InfoRow icon={<Eye class='h-4 w-4' />} label='Visibilitas' value={getVisibilityLabel(course.visibility)} />
-                <InfoRow
-                  icon={<Users class='h-4 w-4' />}
-                  label='Maks. Siswa'
-                  value={course.maxStudents > 0 ? String(course.maxStudents) : 'Tidak terbatas'}
-                />
-                <InfoRow
-                  icon={<Award class='h-4 w-4' />}
-                  label='Sertifikat'
-                  value={course.certificate ? 'Ya' : 'Tidak'}
-                />
 
                 {course.categories.length > 0 && (
                   <div class='border-t border-[hsl(var(--border))] pt-2'>

@@ -4,7 +4,6 @@ import { BookOpen, LogOut, Plus, Search } from '@/components/lms/icons'
 import { CourseCard } from '@/components/lms/course-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { getDifficultyLabel } from '@/lib/lms-labels'
 import { deleteCourse } from '@/lib/lms-storage'
 import { toast } from '@/lib/toast'
 import type { Course } from '@/types/lms'
@@ -56,16 +55,13 @@ function LogoutButton() {
 function CourseList({ courses: initialCourses, isAdmin }: { courses: Course[]; isAdmin: boolean }) {
     const [courses, setCourses] = useState(initialCourses)
     const [search, setSearch] = useState('')
-    const [levelFilter, setLevelFilter] = useState<string>('all')
 
     const filteredCourses = useMemo(
         () =>
-            courses.filter((course) => {
-                const matchesSearch = course.title.toLowerCase().includes(search.toLowerCase())
-                const matchesLevel = levelFilter === 'all' || course.difficultyLevel === levelFilter
-                return matchesSearch && matchesLevel
-            }),
-        [courses, search, levelFilter]
+            courses.filter((course) =>
+                course.title.toLowerCase().includes(search.toLowerCase())
+            ),
+        [courses, search]
     )
 
     const handleDelete = async (id: string) => {
@@ -76,8 +72,8 @@ function CourseList({ courses: initialCourses, isAdmin }: { courses: Course[]; i
 
     return (
         <>
-            <div class='mb-6 flex flex-col gap-3 sm:flex-row'>
-                <div class='relative flex-1'>
+            <div class='mb-6'>
+                <div class='relative'>
                     <Search class='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--muted-foreground))]' />
                     <Input
                         placeholder='Cari kursus...'
@@ -86,17 +82,6 @@ function CourseList({ courses: initialCourses, isAdmin }: { courses: Course[]; i
                         class='pl-9'
                     />
                 </div>
-
-                <select
-                    value={levelFilter}
-                    onChange={(event) => setLevelFilter((event.target as HTMLSelectElement).value)}
-                    class='h-10 w-[180px] rounded-[var(--radius)] border border-[hsl(var(--border))] bg-transparent px-3 text-sm'
-                >
-                    <option value='all'>Semua Level</option>
-                    <option value='beginner'>{getDifficultyLabel('beginner')}</option>
-                    <option value='intermediate'>{getDifficultyLabel('intermediate')}</option>
-                    <option value='advanced'>{getDifficultyLabel('advanced')}</option>
-                </select>
             </div>
 
             {filteredCourses.length === 0 ? (

@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Edit, Eye, ImageIcon, MoreVertical, Trash2 } from '@/components/lms/icons'
-import { getDifficultyLabel, getPricingLabel, getStatusLabel } from '@/lib/lms-labels'
+import { getStatusLabel } from '@/lib/lms-labels'
 import { go } from '@/islands/lms/hooks/navigation'
 
 interface CourseCardProps {
@@ -29,11 +29,7 @@ interface CourseCardProps {
   onDelete?: (id: string) => void
 }
 
-const levelColors: Record<Course['difficultyLevel'], string> = {
-  beginner: 'border-emerald-200 bg-emerald-100 text-emerald-700',
-  intermediate: 'border-amber-200 bg-amber-100 text-amber-700',
-  advanced: 'border-rose-200 bg-rose-100 text-rose-700',
-}
+
 
 export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
   const deleteDialogId = `delete-course-${course.id}`
@@ -61,14 +57,7 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
             <ImageIcon class='h-10 w-10 text-[hsl(var(--muted-foreground))]/40' />
           </div>
         )}
-        <div class='absolute left-2 top-2 flex gap-1.5'>
-          <Badge variant='secondary' class={levelColors[course.difficultyLevel]}>
-            {getDifficultyLabel(course.difficultyLevel)}
-          </Badge>
-          <Badge variant={course.pricingModel === 'free' ? 'default' : 'outline'} class='text-xs'>
-            {getPricingLabel(course.pricingModel)}
-          </Badge>
-        </div>
+
 
         <DropdownMenu id={`course-card-${course.id}`}>
           <DropdownMenuTrigger
@@ -144,9 +133,6 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
         <h3 class='mb-1 line-clamp-2 text-sm font-semibold transition-colors hover:text-[hsl(var(--primary))]'>
           {course.title || 'Kursus Tanpa Judul'}
         </h3>
-        <p class='text-xs text-[hsl(var(--muted-foreground))]'>
-          {course.author || 'Tanpa pengajar'} · {getStatusLabel(course.status)}
-        </p>
       </CardContent>
     </Card>
   )

@@ -294,6 +294,41 @@ export async function reorderLessons(topicId: string, orderedIds: string[]): Pro
   })
 }
 
+export interface BulkImportLesson {
+  title: string
+  slug?: string
+  content?: string
+  featuredImage?: string
+  videoUrl?: string
+  videoPlaybackHours?: number
+  videoPlaybackMinutes?: number
+  videoPlaybackSeconds?: number
+  exerciseFiles?: string[]
+  isPreview?: boolean
+  previewType?: 'free' | 'pro'
+}
+
+export interface BulkImportTopic {
+  title: string
+  lessons: BulkImportLesson[]
+}
+
+export interface BulkImportResult {
+  topicsCreated: number
+  lessonsCreated: number
+  topics: Topic[]
+}
+
+export async function bulkImportTopicsAndLessons(
+  courseId: string,
+  topics: BulkImportTopic[]
+): Promise<BulkImportResult> {
+  return apiFetch<BulkImportResult>(`/api/courses/${encode(courseId)}/import`, {
+    method: 'POST',
+    body: JSON.stringify({ topics }),
+  })
+}
+
 export function generateSlug(title: string): string {
   return title
     .toLowerCase()

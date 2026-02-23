@@ -6,6 +6,7 @@ import {
   createUserRecord,
   deleteCourse as deleteCourseRecord,
   deleteLesson as deleteLessonRecord,
+  deleteLessonsByTopic as deleteLessonsByTopicRecord,
   deleteSession as deleteSessionRecord,
   deleteTopic as deleteTopicRecord,
   deleteUser as deleteUserRecord,
@@ -39,6 +40,9 @@ import {
   updateLesson as updateLessonRecord,
   updateTopic as updateTopicRecord,
   updateUserRole as updateUserRoleRecord,
+  bulkImportTopicsAndLessons as bulkImportRecord,
+  type BulkImportTopic,
+  type BulkImportResult,
 } from '@/lib/server/db/repositories/lms-repo'
 
 type CourseInput = Omit<Course, 'id' | 'createdAt' | 'updatedAt'>
@@ -272,6 +276,16 @@ export async function updateTopic(
 export async function deleteTopic(database: D1Database, topicId: string): Promise<boolean> {
   return deleteTopicRecord(database, topicId)
 }
+
+export async function bulkImportTopicsAndLessons(
+  database: D1Database,
+  courseId: string,
+  topics: BulkImportTopic[]
+): Promise<BulkImportResult> {
+  return bulkImportRecord(database, courseId, topics)
+}
+
+export type { BulkImportTopic, BulkImportResult }
 
 export async function reorderTopics(
   database: D1Database,

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'hono/jsx'
 
 import { parseSpreadsheetData, type ParseResult } from '@/lib/parse-spreadsheet'
-import { createLesson, createTopic, generateSlug, getTopicsByCourse } from '@/lib/lms-storage'
+import { bulkImportTopicsAndLessons, generateSlug } from '@/lib/lms-storage'
 import { toast } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import {
@@ -56,37 +56,19 @@ export function SpreadsheetImportModal({ courseId, onClose }: SpreadsheetImportM
     setImporting(true)
 
     try {
-      const existingTopics = await getTopicsByCourse(courseId)
-      let topicOrder = existingTopics.length
+      const topics = parseResult.topics.map((parsedTopic) => ({
+        title: parsedTopic.title,
+        lessons: parsedTopic.lessons.map((lesson) => ({
+          title: lesson.title,
+          slug: generateSlug(lesson.title),
+          videoUrl: lesson.youtubeUrl,
+          videoPlaybackHours: lesson.durationHours,
+          videoPlaybackMinutes: lesson.durationMinutes,
+          videoPlaybackSeconds: lesson.durationSeconds,
+        })),
+      }))
 
-      for (const parsedTopic of parseResult.topics) {
-        const topic = await createTopic({
-          courseId,
-          title: parsedTopic.title,
-          order: topicOrder++,
-        })
-
-        await Promise.all(
-          parsedTopic.lessons.map((lesson, lessonOrder) =>
-            createLesson({
-              topicId: topic.id,
-              courseId,
-              title: lesson.title,
-            slug: generateSlug(lesson.title),
-            content: '',
-            featuredImage: '',
-            videoUrl: lesson.youtubeUrl,
-            videoPlaybackHours: lesson.durationHours,
-            videoPlaybackMinutes: lesson.durationMinutes,
-            videoPlaybackSeconds: lesson.durationSeconds,
-            exerciseFiles: [],
-              isPreview: false,
-              previewType: 'free',
-              order: lessonOrder,
-            })
-          )
-        )
-      }
+      await bulkImportTopicsAndLessons(courseId, topics)
 
       setImported(true)
       toast({

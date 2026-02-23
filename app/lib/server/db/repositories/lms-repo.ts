@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, like, ne, sql } from 'drizzle-orm'
 
 import type { Course, Enrollment, Lesson, Topic, User, UserRole } from '@/types/lms'
 import { getDb } from '@/lib/server/db/client'
@@ -549,6 +549,149 @@ export async function deleteLesson(database: D1Database, lessonId: string): Prom
   if (!existing) return false
   await db.delete(lessons).where(eq(lessons.id, lessonId))
   return true
+}
+
+export async function deleteLessonsByTopic(database: D1Database, topicId: string): Promise<number> {
+  const db = getDb(database)
+  const existing = await db
+    .select({ id: lessons.id })
+    .from(lessons)
+    .where(eq(lessons.topicId, topicId))
+  if (existing.length === 0) return 0
+  await db.delete(lessons).where(eq(lessons.topicId, topicId))
+  return existing.length
+}
+
+export interface BulkImportTopic {
+  title: string
+  lessons: {
+    title: string
+    slug: string
+    content: string
+    featuredImage: string
+    videoUrl: string
+    videoPlaybackHours: number
+    videoPlaybackMinutes: number
+    videoPlaybackSeconds: number
+    exerciseFiles: string[]
+    isPreview: boolean
+    previewType: 'free' | 'pro'
+  }[]
+}
+
+export interface BulkImportResult {
+  topicsCreated: number
+  lessonsCreated: number
+  topics: Topic[]
+}
+
+export async function bulkImportTopicsAndLessons(
+  database: D1Database,
+  courseId: string,
+  importTopics: BulkImportTopic[]
+): Promise<BulkImportResult> {
+  const db = getDb(database)
+  const createdTopics: Topic[] = []
+  let lessonsCreated = 0
+
+  // Get starting sort order for topics
+  let topicOrder = await getNextTopicSortOrder(db, courseId)
+
+  // Collect existing lesson slugs for this course to ensure uniqueness
+  const existingSlugs = new Set<string>()
+  const existingLessonRows = await db
+    .select({ slug: lessons.slug })
+    .from(lessons)
+    .where(eq(lessons.courseId, courseId))
+  for (const row of existingLessonRows) {
+    existingSlugs.add(row.slug)
+  }
+
+  const timestamp = nowIso()
+
+  for (const importTopic of importTopics) {
+    // Create topic
+    const topicId = generateId()
+
+    for (let attempt = 0; attempt < SORT_ORDER_INSERT_RETRY_LIMIT; attempt += 1) {
+      try {
+        await db.insert(topics).values({
+          id: topicId,
+          courseId,
+          title: importTopic.title,
+          sortOrder: topicOrder,
+          createdAt: timestamp,
+        })
+        break
+      } catch (error) {
+        const shouldRetry =
+          isTopicSortOrderConflict(error) && attempt < SORT_ORDER_INSERT_RETRY_LIMIT - 1
+        if (!shouldRetry) throw error
+        topicOrder = await getNextTopicSortOrder(db, courseId)
+      }
+    }
+    topicOrder += 1
+
+    const [topicRow] = await db.select().from(topics).where(eq(topics.id, topicId)).limit(1)
+    if (!topicRow) throw new Error('failed to create topic during bulk import')
+    createdTopics.push(toTopic(topicRow))
+
+    // Create all lessons for this topic
+    let lessonOrder = 0
+    for (const lessonData of importTopic.lessons) {
+      const lessonId = generateId()
+
+      // Ensure unique slug within course
+      let slug = lessonData.slug || 'lesson'
+      let candidate = slug
+      let count = 2
+      while (existingSlugs.has(candidate)) {
+        candidate = `${slug}-${count}`
+        count += 1
+      }
+      slug = candidate
+      existingSlugs.add(slug)
+
+      for (let attempt = 0; attempt < SORT_ORDER_INSERT_RETRY_LIMIT; attempt += 1) {
+        try {
+          await db.insert(lessons).values({
+            id: lessonId,
+            topicId,
+            courseId,
+            title: lessonData.title,
+            slug,
+            content: lessonData.content,
+            featuredImage: lessonData.featuredImage,
+            videoUrl: lessonData.videoUrl,
+            videoPlaybackHours: lessonData.videoPlaybackHours,
+            videoPlaybackMinutes: lessonData.videoPlaybackMinutes,
+            videoPlaybackSeconds: lessonData.videoPlaybackSeconds,
+            exerciseFilesJson: toJsonStringArray(lessonData.exerciseFiles),
+            isPreview: lessonData.isPreview,
+            previewType: lessonData.previewType,
+            sortOrder: lessonOrder,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          })
+          break
+        } catch (error) {
+          const shouldRetry =
+            isLessonSortOrderConflict(error) && attempt < SORT_ORDER_INSERT_RETRY_LIMIT - 1
+          if (!shouldRetry) throw error
+          lessonOrder = await getNextLessonSortOrder(db, topicId)
+        }
+      }
+
+      lessonOrder += 1
+      lessonsCreated += 1
+    }
+  }
+
+  return {
+    topicsCreated: createdTopics.length,
+    lessonsCreated,
+    topics: createdTopics,
+  }
 }
 
 export async function reorderLessons(

@@ -269,18 +269,23 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
             </div>
           </div>
 
-          <div class='space-y-4'>
-            <Card>
-              <CardContent class='space-y-4 p-5'>
-                <InfoRow icon={<BookOpen class='h-4 w-4' />} label='Pelajaran' value={String(totalLessons)} />
-                <InfoRow icon={<Eye class='h-4 w-4' />} label='Visibilitas' value={getVisibilityLabel(course.visibility)} />
+          <div class='space-y-6'>
+            <Card class='overflow-hidden'>
+              <div class='bg-[hsl(var(--muted))]/50 p-6 border-b border-[hsl(var(--border))]'>
+                <h3 class='text-lg font-semibold text-slate-800'>Informasi Kursus</h3>
+              </div>
+              <CardContent class='p-6 space-y-6 pt-6'>
+                <div class='space-y-4'>
+                  <InfoRow icon={<BookOpen class='h-4 w-4' />} label='Pelajaran' value={String(totalLessons)} />
+                  <InfoRow icon={<Eye class='h-4 w-4' />} label='Visibilitas' value={getVisibilityLabel(course.visibility)} />
+                </div>
 
                 {course.categories.length > 0 && (
-                  <div class='border-t border-[hsl(var(--border))] pt-2'>
-                    <p class='mb-2 text-xs font-medium text-[hsl(var(--muted-foreground))]'>Kategori</p>
-                    <div class='flex flex-wrap gap-1'>
+                  <div class='border-t border-[hsl(var(--border))] pt-6'>
+                    <p class='mb-3 text-sm font-medium text-slate-700'>Kategori</p>
+                    <div class='flex flex-wrap gap-2'>
                       {course.categories.map((category) => (
-                        <Badge key={category} variant='secondary' class='text-xs'>
+                        <Badge key={category} variant='secondary' class='text-xs font-normal'>
                           {category}
                         </Badge>
                       ))}
@@ -289,11 +294,11 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
                 )}
 
                 {course.tags.length > 0 && (
-                  <div class='border-t border-[hsl(var(--border))] pt-2'>
-                    <p class='mb-2 text-xs font-medium text-[hsl(var(--muted-foreground))]'>Tag</p>
-                    <div class='flex flex-wrap gap-1'>
+                  <div class='border-t border-[hsl(var(--border))] pt-6'>
+                    <p class='mb-3 text-sm font-medium text-slate-700'>Tag</p>
+                    <div class='flex flex-wrap gap-2'>
                       {course.tags.map((tag) => (
-                        <Badge key={tag} variant='outline' class='text-xs'>
+                        <Badge key={tag} variant='outline' class='text-xs font-normal bg-white'>
                           {tag}
                         </Badge>
                       ))}
@@ -301,28 +306,35 @@ export default function CourseDetailPage({ courseslug }: CourseDetailPageProps) 
                   </div>
                 )}
 
-                {enrolled ? (
-                  <>
-                    <Progress value={progress} class='h-2' />
-                    <p class='text-center text-xs text-[hsl(var(--muted-foreground))]'>{progress}% selesai</p>
-                    <Button class='w-full' onClick={() => go(`/courses/${course.slug}/lessons`)}>
-                      <PlayCircle class='mr-2 h-4 w-4' /> Lanjut Belajar
+                <div class='border-t border-[hsl(var(--border))] pt-6 space-y-5'>
+                  {enrolled ? (
+                    <>
+                      <div class='space-y-2'>
+                        <div class='flex justify-between items-center text-sm font-medium'>
+                          <span class='text-slate-600'>Progres Belajar</span>
+                          <span class='text-[hsl(var(--primary))] font-bold'>{progress}%</span>
+                        </div>
+                        <Progress value={progress} class='h-2.5 w-full rounded-full' />
+                      </div>
+                      <Button class='w-full py-6 text-base font-semibold shadow-lg shadow-[hsl(var(--primary))]/25 transition-transform hover:-translate-y-0.5' onClick={() => go(`/courses/${course.slug}/lessons`)}>
+                        <PlayCircle class='mr-2 h-5 w-5' /> Lanjut Belajar
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      class='w-full py-6 text-base font-semibold shadow-lg shadow-[hsl(var(--primary))]/25 transition-transform hover:-translate-y-0.5'
+                      onClick={() => void handleEnroll()}
+                    >
+                      <BookOpen class='mr-2 h-5 w-5' /> Ikuti Kursus
                     </Button>
-                  </>
-                ) : (
-                  <Button
-                    class='w-full'
-                    onClick={() => void handleEnroll()}
-                  >
-                    <BookOpen class='mr-2 h-4 w-4' /> Ikuti Kursus
-                  </Button>
-                )}
+                  )}
 
-                {isAdmin && (
-                  <Button variant='outline' class='w-full' onClick={() => go(`/admin/courses/${course.id}`)}>
-                    <Edit class='mr-2 h-4 w-4' /> Edit Kursus
-                  </Button>
-                )}
+                  {isAdmin && (
+                    <Button variant='outline' class='w-full hover:bg-slate-50' onClick={() => go(`/admin/courses/${course.id}`)}>
+                      <Edit class='mr-2 h-4 w-4' /> Edit Kursus
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

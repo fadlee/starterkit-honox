@@ -11,19 +11,19 @@ export type ButtonProps = JSX.IntrinsicElements['button'] & {
 }
 
 const base =
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background))] disabled:pointer-events-none disabled:opacity-50'
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius)] text-sm font-medium transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background))] disabled:pointer-events-none disabled:opacity-50'
 
 const variants: Record<Variant, string> = {
   default:
-    'bg-black text-white hover:bg-black/90',
+    'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-sm hover:shadow-md hover:bg-[hsl(var(--primary))]/90',
   secondary:
-    'bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]/80',
+    'bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))] shadow-sm hover:shadow-md hover:bg-[hsl(var(--secondary))]/80',
   outline:
-    'border border-[hsl(var(--border))] bg-transparent hover:bg-[hsl(var(--muted))]',
+    'border border-[hsl(var(--border))] bg-transparent shadow-sm hover:shadow-md hover:bg-[hsl(var(--accent))] hover:text-[hsl(var(--accent-foreground))]',
   ghost:
-    'bg-transparent hover:bg-[hsl(var(--muted))]',
+    'bg-transparent hover:bg-[hsl(var(--accent))] hover:text-[hsl(var(--accent-foreground))]',
   destructive:
-    'bg-red-600 text-white hover:bg-red-600/90'
+    'bg-[hsl(var(--destructive))] text-[hsl(var(--destructive-foreground))] shadow-sm hover:shadow-md hover:bg-[hsl(var(--destructive))]/90'
 }
 
 const sizes: Record<Size, string> = {

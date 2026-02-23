@@ -16,7 +16,7 @@ export function HomePage({ courses, user }: HomePageProps) {
 
     return (
         <div class='min-h-screen bg-[hsl(var(--background))]'>
-            <header class='border-b border-[hsl(var(--border))] bg-white'>
+            <header class='sticky top-0 z-50 w-full border-b border-[hsl(var(--border))] bg-white/80 backdrop-blur-md'>
                 <div class='mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8'>
                     <div class='flex items-center gap-3'>
                         <div class='flex h-9 w-9 items-center justify-center rounded-lg bg-black'>
@@ -66,6 +66,19 @@ export function HomePage({ courses, user }: HomePageProps) {
             </header>
 
             <main class='mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8'>
+                <div class='mb-10 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-8 sm:p-12 text-center shadow-sm border border-blue-100/50 relative'>
+                    <div class='absolute top-0 right-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-gradient-to-br from-blue-400/20 to-purple-400/20 blur-3xl'></div>
+                    <div class='absolute bottom-0 left-0 -mb-16 -ml-16 h-64 w-64 rounded-full bg-gradient-to-tr from-indigo-400/20 to-pink-400/20 blur-3xl'></div>
+                    <div class='relative z-10'>
+                        <h2 class='mb-4 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl md:text-5xl'>
+                            Selamat Datang{user ? `, ${user.displayName}` : ''}!
+                        </h2>
+                        <p class='mx-auto max-w-2xl text-lg text-slate-600 sm:text-xl'>
+                            Jelajahi berbagai kursus menarik yang kami sediakan untuk meningkatkan pengetahuan dan kemampuan Anda.
+                        </p>
+                    </div>
+                </div>
+
                 <HomeInteractive action='course-list' courses={courses} isAdmin={isAdmin} />
             </main>
         </div>

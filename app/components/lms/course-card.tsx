@@ -36,7 +36,7 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
 
   return (
     <Card
-      class='group cursor-pointer overflow-hidden transition-shadow hover:shadow-md'
+      class='group cursor-pointer overflow-hidden rounded-2xl border-[hsl(var(--border))] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl'
       onClick={(event) => {
         const target = event.target as HTMLElement | null
         if (
@@ -51,13 +51,13 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
     >
       <div class='relative aspect-video overflow-hidden bg-[hsl(var(--muted))]'>
         {course.featuredImage ? (
-          <img src={course.featuredImage} alt={course.title} class='h-full w-full object-cover' />
+          <img src={course.featuredImage} alt={course.title} class='h-full w-full object-cover transition-transform duration-500 group-hover:scale-110' />
         ) : (
-          <div class='flex h-full w-full items-center justify-center'>
+          <div class='flex h-full w-full items-center justify-center bg-slate-100 transition-transform duration-500 group-hover:scale-110'>
             <ImageIcon class='h-10 w-10 text-[hsl(var(--muted-foreground))]/40' />
           </div>
         )}
-
+        <div class='absolute inset-0 bg-gradient-to-t from-slate-900/60 via-slate-900/0 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100' />
 
         <DropdownMenu id={`course-card-${course.id}`}>
           <DropdownMenuTrigger
@@ -129,8 +129,8 @@ export function CourseCard({ course, onEdit, onDelete }: CourseCardProps) {
         )}
       </div>
 
-      <CardContent class='p-4'>
-        <h3 class='mb-1 line-clamp-2 text-sm font-semibold transition-colors hover:text-[hsl(var(--primary))]'>
+      <CardContent class='p-5 pt-5'>
+        <h3 class='line-clamp-2 text-base font-bold text-slate-800 transition-colors group-hover:text-[hsl(var(--primary))]'>
           {course.title || 'Kursus Tanpa Judul'}
         </h3>
       </CardContent>

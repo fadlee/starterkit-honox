@@ -6,6 +6,7 @@
     "dev:portless": "portless ahwal-course-honox vite",
     "build": "vite build --mode client && vite build",
     "typecheck": "tsc --noEmit",
+    "reset-admin-password": "bun scripts/reset-admin-password.ts",
     "db:migrate:local": "wrangler d1 migrations apply LMS_DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply LMS_DB --remote",
     "db:seed": "wrangler d1 execute LMS_DB --file=./migrations/seeds/0001_seed.sql",

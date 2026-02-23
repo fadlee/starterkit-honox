@@ -119,10 +119,6 @@ export default function LoginPage() {
                 <Button type='button' onClick={() => void handleLogin()} class='w-full gap-2'>
                   <LogIn class='h-4 w-4' /> Masuk
                 </Button>
-                <p class='text-center text-xs text-[hsl(var(--muted-foreground))]'>
-                  Admin bawaan: <code class='rounded bg-[hsl(var(--muted))] px-1'>admin</code> /{' '}
-                  <code class='rounded bg-[hsl(var(--muted))] px-1'>admin123</code>
-                </p>
               </form>
             ) : (
               <form

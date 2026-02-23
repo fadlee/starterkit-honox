@@ -39,6 +39,7 @@ import {
   updateCourse as updateCourseRecord,
   updateLesson as updateLessonRecord,
   updateTopic as updateTopicRecord,
+  updateUserPassword as updateUserPasswordRecord,
   updateUserRole as updateUserRoleRecord,
   bulkImportTopicsAndLessons as bulkImportRecord,
   type BulkImportTopic,
@@ -177,6 +178,15 @@ export async function updateUserRole(
 
 export async function deleteUser(database: D1Database, userId: string): Promise<boolean> {
   return deleteUserRecord(database, userId)
+}
+
+export async function updateUserPassword(
+  database: D1Database,
+  userId: string,
+  newPassword: string
+): Promise<boolean> {
+  const passwordHash = await hashPassword(newPassword)
+  return updateUserPasswordRecord(database, userId, passwordHash)
 }
 
 export async function createSession(database: D1Database, userId: string): Promise<string> {

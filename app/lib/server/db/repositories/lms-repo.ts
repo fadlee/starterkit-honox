@@ -182,6 +182,21 @@ export async function deleteUser(database: D1Database, userId: string): Promise<
   return true
 }
 
+export async function updateUserPassword(
+  database: D1Database,
+  userId: string,
+  passwordHash: string
+): Promise<boolean> {
+  const db = getDb(database)
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1)
+  if (!existing) return false
+  await db
+    .update(users)
+    .set({ passwordHash, updatedAt: nowIso() })
+    .where(eq(users.id, userId))
+  return true
+}
+
 export async function createSession(database: D1Database, userId: string, expiresAtMs: number): Promise<string> {
   const db = getDb(database)
   const id = generateId()

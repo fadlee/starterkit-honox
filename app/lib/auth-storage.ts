@@ -71,3 +71,10 @@ export async function updateUserRole(id: string, role: UserRole): Promise<void> 
     body: JSON.stringify({ role }),
   })
 }
+
+export async function changePassword(id: string, newPassword: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/api/users/${id}/password`, {
+    method: 'PATCH',
+    body: JSON.stringify({ newPassword }),
+  })
+}

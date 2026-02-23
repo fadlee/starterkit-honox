@@ -53,6 +53,7 @@ export const PanelLeftClose = createIcon('M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h
 export const PanelLeft = createIcon('M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4M21 3v18')
 export const MoreVertical = createIcon('M12 5h.01M12 12h.01M12 19h.01')
 export const Trash2 = createIcon('M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v6M14 10v6')
+export const KeyRound = createIcon('M2 18v3h4v-3h3v-3h3l1.68-1.68A6.5 6.5 0 1 0 17.5 7.5a6.5 6.5 0 0 0-6.32 8L2 18Zm16-9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z')
 export const X = createIcon('M18 6 6 18M6 6l12 12')
 export const Upload = createIcon('M12 16V4M7 9l5-5 5 5M4 20h16')
 export const Film = createIcon('M3 5h18v14H3V5Zm4 0v14M17 5v14M3 9h18M3 15h18')

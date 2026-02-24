@@ -443,3 +443,23 @@ export async function getNote(courseId: string, lessonId: string): Promise<strin
     throw error
   }
 }
+
+export interface SiteSettings {
+  siteName: string
+  siteIcon: string
+}
+
+export async function getSiteSettings(): Promise<SiteSettings> {
+  try {
+    return await apiFetch<SiteSettings>('/api/settings')
+  } catch {
+    return { siteName: '', siteIcon: '' }
+  }
+}
+
+export async function updateSiteSettings(data: Partial<SiteSettings>): Promise<SiteSettings> {
+  return apiFetch<SiteSettings>('/api/settings', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}

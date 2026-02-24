@@ -18,6 +18,7 @@ import {
   lessonNotes,
   lessons,
   sessions,
+  siteSettings,
   topics,
   users,
 } from '@/lib/server/db/schema'
@@ -972,4 +973,51 @@ export async function findLessonByCourseSlugExcludingId(
 
   const [row] = await db.select().from(lessons).where(where).limit(1)
   return row ? toLesson(row) : null
+}
+
+export interface SiteSettings {
+  siteName: string
+  siteIcon: string
+}
+
+const SITE_SETTINGS_KEYS = ['siteName', 'siteIcon'] as const
+
+export async function getSiteSettings(database: D1Database): Promise<SiteSettings> {
+  const db = getDb(database)
+  const rows = await db
+    .select()
+    .from(siteSettings)
+    .where(inArray(siteSettings.key, [...SITE_SETTINGS_KEYS]))
+
+  const map: Record<string, string> = {}
+  for (const row of rows) {
+    map[row.key] = row.value
+  }
+
+  return {
+    siteName: map['siteName'] ?? '',
+    siteIcon: map['siteIcon'] ?? '',
+  }
+}
+
+export async function setSiteSettings(
+  database: D1Database,
+  data: Partial<SiteSettings>
+): Promise<SiteSettings> {
+  const db = getDb(database)
+  const timestamp = nowIso()
+
+  const entries = Object.entries(data) as [string, string][]
+  for (const [key, value] of entries) {
+    if (!SITE_SETTINGS_KEYS.includes(key as (typeof SITE_SETTINGS_KEYS)[number])) continue
+    await db
+      .insert(siteSettings)
+      .values({ key, value, updatedAt: timestamp })
+      .onConflictDoUpdate({
+        target: siteSettings.key,
+        set: { value, updatedAt: timestamp },
+      })
+  }
+
+  return getSiteSettings(database)
 }

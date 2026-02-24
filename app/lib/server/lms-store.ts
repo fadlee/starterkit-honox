@@ -22,6 +22,7 @@ import {
   getLessonBySlug as getLessonBySlugRecord,
   getNote as getNoteRecord,
   getSessionUser as getSessionUserRecord,
+  getSiteSettings as getSiteSettingsRecord,
   getTopicById as getTopicByIdRecord,
   getUserById as getUserByIdRecord,
   insertCourse,
@@ -34,6 +35,7 @@ import {
   reorderLessons as reorderLessonsRecord,
   reorderTopics as reorderTopicsRecord,
   saveNote as saveNoteRecord,
+  setSiteSettings as setSiteSettingsRecord,
   toggleLessonComplete as toggleLessonCompleteRecord,
   unenrollCourse as unenrollCourseRecord,
   updateCourse as updateCourseRecord,
@@ -44,6 +46,7 @@ import {
   bulkImportTopicsAndLessons as bulkImportRecord,
   type BulkImportTopic,
   type BulkImportResult,
+  type SiteSettings,
 } from '@/lib/server/db/repositories/lms-repo'
 
 type CourseInput = Omit<Course, 'id' | 'createdAt' | 'updatedAt'>
@@ -437,3 +440,16 @@ export async function getNote(
 ): Promise<string> {
   return getNoteRecord(database, userId, courseId, lessonId)
 }
+
+export async function getSiteSettings(database: D1Database): Promise<SiteSettings> {
+  return getSiteSettingsRecord(database)
+}
+
+export async function setSiteSettings(
+  database: D1Database,
+  data: Partial<SiteSettings>
+): Promise<SiteSettings> {
+  return setSiteSettingsRecord(database, data)
+}
+
+export type { SiteSettings }

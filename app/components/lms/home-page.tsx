@@ -1,28 +1,39 @@
-import { BookOpen, Plus, Shield, Users } from '@/components/lms/icons'
+import { BookOpen, Plus, Settings, Shield, Users } from '@/components/lms/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getRoleLabel } from '@/lib/lms-labels'
 import type { Course, User } from '@/types/lms'
+import type { SiteSettings } from '@/lib/server/lms-store'
 import { CourseCard } from '@/components/lms/course-card'
 import HomeInteractive from '@/islands/lms/home-interactive'
 
 interface HomePageProps {
     courses: Course[]
     user: User | null
+    siteSettings: SiteSettings
 }
 
-export function HomePage({ courses, user }: HomePageProps) {
+export function HomePage({ courses, user, siteSettings }: HomePageProps) {
     const isAdmin = user?.role === 'admin'
+    const displayName = siteSettings.siteName || 'LMS Course Builder'
 
     return (
         <div class='min-h-screen bg-[hsl(var(--background))]'>
-            <header class='sticky top-0 z-50 w-full border-b border-[hsl(var(--border))] bg-white/80 backdrop-blur-md'>
+            <header class='z-50 w-full border-b border-[hsl(var(--border))] bg-white/95'>
                 <div class='mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8'>
                     <div class='flex items-center gap-3'>
-                        <div class='flex h-9 w-9 items-center justify-center rounded-lg bg-black'>
-                            <BookOpen class='h-5 w-5 text-white' />
-                        </div>
-                        <h1 class='text-xl font-bold'>LMS Course Builder</h1>
+                        {siteSettings.siteIcon ? (
+                            <img
+                                src={siteSettings.siteIcon}
+                                alt={displayName}
+                                class='h-9 w-9 rounded-lg object-cover'
+                            />
+                        ) : (
+                            <div class='flex h-9 w-9 items-center justify-center rounded-lg bg-black'>
+                                <BookOpen class='h-5 w-5 text-white' />
+                            </div>
+                        )}
+                        <h1 class='text-xl font-bold'>{displayName}</h1>
                     </div>
 
                     <div class='flex items-center gap-3'>
@@ -35,6 +46,10 @@ export function HomePage({ courses, user }: HomePageProps) {
                                 </Badge>
                             )}
                         </div>
+
+                        {isAdmin && (
+                            <HomeInteractive action='settings' initialSettings={siteSettings} />
+                        )}
 
                         {isAdmin && (
                             <a href='/admin/users'>

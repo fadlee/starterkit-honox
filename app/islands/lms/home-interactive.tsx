@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'hono/jsx'
 
-import { BookOpen, LogOut, Plus, Search } from '@/components/lms/icons'
+import { BookOpen, LogOut, Plus, Search, Settings } from '@/components/lms/icons'
 import { CourseCard } from '@/components/lms/course-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { deleteCourse } from '@/lib/lms-storage'
+import { Label } from '@/components/ui/label'
+import { deleteCourse, getSiteSettings, updateSiteSettings, type SiteSettings } from '@/lib/lms-storage'
 import { toast } from '@/lib/toast'
 import type { Course } from '@/types/lms'
 import { go } from '@/islands/lms/hooks/navigation'
@@ -19,11 +20,20 @@ type CourseListProps = {
     isAdmin: boolean
 }
 
-type HomeInteractiveProps = LogoutProps | CourseListProps
+type SettingsProps = {
+    action: 'settings'
+    initialSettings: SiteSettings
+}
+
+type HomeInteractiveProps = LogoutProps | CourseListProps | SettingsProps
 
 export default function HomeInteractive(props: HomeInteractiveProps) {
     if (props.action === 'logout') {
         return <LogoutButton />
+    }
+
+    if (props.action === 'settings') {
+        return <SettingsButton initialSettings={props.initialSettings} />
     }
 
     return <CourseList courses={props.courses} isAdmin={props.isAdmin} />
@@ -49,6 +59,109 @@ function LogoutButton() {
         >
             <LogOut class='h-4 w-4' /> Keluar
         </Button>
+    )
+}
+
+function SettingsButton({ initialSettings }: { initialSettings: SiteSettings }) {
+    const [open, setOpen] = useState(false)
+    const [form, setForm] = useState<SiteSettings>(initialSettings)
+    const [saving, setSaving] = useState(false)
+
+    const handleSave = async () => {
+        setSaving(true)
+        try {
+            await updateSiteSettings(form)
+            toast({ title: 'Pengaturan berhasil disimpan', variant: 'success' })
+            setOpen(false)
+            window.location.reload()
+        } catch {
+            toast({ title: 'Gagal menyimpan pengaturan', variant: 'error' })
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    return (
+        <>
+            <Button variant='outline' size='sm' onClick={() => setOpen(true)} class='gap-1.5'>
+                <Settings class='h-4 w-4' /> Pengaturan
+            </Button>
+
+            {open && (
+                <div
+                    class='fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center'
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setOpen(false)
+                    }}
+                >
+                    <div class='my-6 w-full max-w-md rounded-lg border border-[hsl(var(--border))] bg-white p-6 shadow-lg max-h-[calc(100vh-3rem)] overflow-y-auto'>
+                        <div class='mb-4 flex items-center justify-between'>
+                            <div>
+                                <h2 class='text-lg font-semibold'>Pengaturan Website</h2>
+                                <p class='text-sm text-[hsl(var(--muted-foreground))]'>Atur nama dan ikon website</p>
+                            </div>
+                            <Button variant='ghost' size='icon' onClick={() => setOpen(false)}>
+                                <svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' class='h-4 w-4'><path d='M18 6 6 18M6 6l12 12' /></svg>
+                            </Button>
+                        </div>
+
+                        <div class='space-y-4'>
+                            <div class='space-y-2'>
+                                <Label htmlFor='site-name'>Nama Website</Label>
+                                <Input
+                                    id='site-name'
+                                    placeholder='LMS Course Builder'
+                                    value={form.siteName}
+                                    onInput={(e) =>
+                                        setForm((prev) => ({
+                                            ...prev,
+                                            siteName: (e.target as HTMLInputElement).value,
+                                        }))
+                                    }
+                                />
+                            </div>
+
+                            <div class='space-y-2'>
+                                <Label htmlFor='site-icon'>URL Ikon Website</Label>
+                                <Input
+                                    id='site-icon'
+                                    placeholder='https://example.com/icon.png'
+                                    value={form.siteIcon}
+                                    onInput={(e) =>
+                                        setForm((prev) => ({
+                                            ...prev,
+                                            siteIcon: (e.target as HTMLInputElement).value,
+                                        }))
+                                    }
+                                />
+                                {form.siteIcon && (
+                                    <div class='flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]'>
+                                        <img
+                                            src={form.siteIcon}
+                                            alt='preview'
+                                            class='h-8 w-8 rounded object-cover'
+                                            onError={(e: Event) => {
+                                                ;(e.target as HTMLImageElement).style.display = 'none'
+                                            }}
+                                        />
+                                        <span>Preview ikon</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div class='mt-6 flex gap-2'>
+                            <Button class='flex-1' onClick={() => void handleSave()} disabled={saving}>
+                                {saving ? 'Menyimpan...' : 'Simpan'}
+                            </Button>
+                            <Button variant='outline' class='flex-1' onClick={() => setOpen(false)}>
+                                Batal
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     )
 }
 

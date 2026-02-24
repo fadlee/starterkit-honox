@@ -176,3 +176,9 @@ export const lessonNotes = sqliteTable(
     pk: primaryKey({ columns: [table.enrollmentId, table.lessonId] }),
   })
 )
+
+export const siteSettings = sqliteTable('site_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull().default(''),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+})

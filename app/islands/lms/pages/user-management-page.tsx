@@ -126,7 +126,6 @@ export default function UserManagementPage() {
                   <TableCell>{user.displayName}</TableCell>
                   <TableCell>
                     <select
-                      value={user.role}
                       onChange={(event) =>
                         void handleRoleChange(
                           user.id,
@@ -135,8 +134,12 @@ export default function UserManagementPage() {
                       }
                       class='h-8 w-[120px] rounded-md border border-[hsl(var(--border))] bg-transparent px-2 text-sm'
                     >
-                      <option value='admin'>Admin</option>
-                      <option value='user'>User</option>
+                      <option value='admin' selected={user.role === 'admin'}>
+                        Admin
+                      </option>
+                      <option value='user' selected={user.role === 'user'}>
+                        User
+                      </option>
                     </select>
                   </TableCell>
                   <TableCell class='text-sm text-[hsl(var(--muted-foreground))]'>

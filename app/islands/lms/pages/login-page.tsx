@@ -116,7 +116,7 @@ export default function LoginPage() {
                     }
                   />
                 </div>
-                <Button type='button' onClick={() => void handleLogin()} class='w-full gap-2'>
+                <Button type='submit' class='w-full gap-2'>
                   <LogIn class='h-4 w-4' /> Masuk
                 </Button>
               </form>
@@ -171,7 +171,7 @@ export default function LoginPage() {
                     }
                   />
                 </div>
-                <Button type='button' onClick={() => void handleRegister()} class='w-full gap-2'>
+                <Button type='submit' class='w-full gap-2'>
                   <UserPlus class='h-4 w-4' /> Daftar
                 </Button>
               </form>
